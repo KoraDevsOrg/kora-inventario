@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kora Inventario & Recetas</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- SDK universal de persistencia y sincronización Kora -->
+  <script src="https://cdn.jsdelivr.net/gh/KoraDevsOrg/kora-web-sdk@main/kora-sync.js"></script>
+</head>
+<body>
+
+  <!-- Backdrop accesible del Drawer -->
+  <div id="drawerBackdrop" class="drawer-backdrop"></div>
+
+  <!-- Menú Hamburguesa Lateral -->
+  <aside id="sideDrawer" class="side-drawer">
+    <div class="drawer-header">
+      <h2 id="drawerTitle" style="font-size: 1.1rem; font-weight: 800;">Gestión de Inventario</h2>
+      <button id="btnCloseDrawer" class="btn-hamburger" aria-label="Cerrar menú">✕</button>
+    </div>
+
+    <nav id="drawerList" class="drawer-list">
+      <button class="drawer-item active">📦 Insumos y Materias Primas</button>
+      <button class="drawer-item">🥣 Escandallo de Recetas</button>
+    </nav>
+
+    <div class="drawer-footer">
+      <label for="langSelect" style="font-size: 0.8rem; color: var(--text-sub); display: block; margin-bottom: 6px;">Idioma / Yuwe:</label>
+      <select id="langSelect" class="lang-select">
+        <option value="es">Español</option>
+        <option value="guc">Wayuunaiki</option>
+        <option value="pbb">Nasa Yuwe</option>
+      </select>
+    </div>
+  </aside>
+
+  <!-- Encabezado Principal -->
+  <header>
+    <div class="header-left">
+      <button id="btnOpenDrawer" class="btn-hamburger" aria-label="Abrir menú">☰</button>
+      <h1 id="appTitle">Kora Inventario & Recetas</h1>
+    </div>
+    <div id="offlineBadge" class="offline-badge">100% Offline</div>
+  </header>
+
+  <!-- Barra de Pestañas -->
+  <nav class="tab-bar">
+    <button id="tabItems" class="tab-nav-btn active">1. Insumos y Productos</button>
+    <button id="tabRecipes" class="tab-nav-btn">2. Recetas (Escandallo)</button>
+  </nav>
+
+  <main>
+    <!-- VISTA 1: INSUMOS Y PRODUCTOS -->
+    <section id="viewItems" class="section-view active">
+      <button id="btnNewItem" class="btn-primary">+ Nuevo Material / Producto</button>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Nombre / Proveedor</th>
+              <th>Tipo</th>
+              <th>Stock</th>
+              <th>Costo / Venta</th>
+            </tr>
+          </thead>
+          <tbody id="itemsTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VISTA 2: RECETAS Y ESCANDALLO -->
+    <section id="viewRecipes" class="section-view">
+      <button id="btnNewRecipe" class="btn-primary">+ Nueva Receta de Lote</button>
+      <div id="recipesContainer"></div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="footerText">Kora Negocios Populares • Software Libre MIT</span>
+  </footer>
+
+  <!-- Script modular de la aplicación -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
