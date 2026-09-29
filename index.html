@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kora Inventario & Recetas</title>
   <link rel="stylesheet" href="css/styles.css">
-  <!-- SDK universal de sincronización Kora -->
   <script src="https://cdn.jsdelivr.net/gh/KoraDevsOrg/kora-web-sdk@main/kora-sync.js"></script>
 </head>
 <body>
@@ -16,41 +15,195 @@
   <!-- Menú Hamburguesa Lateral -->
   <aside id="sideDrawer" class="side-drawer">
     <div class="drawer-header">
-      <h2 style="font-size: 1.1rem; font-weight: 800;">Kora Negocios</h2>
-      <button id="btnCloseDrawer" class="btn-hamburger" aria-label="Cerrar menú">✕</button>
+      <h2>Kora Negocios</h2>
+      <button id="btnCloseDrawer" class="btn-icon">✕</button>
     </div>
-
     <nav class="drawer-list">
-      <button class="drawer-item" data-view="items">📦 Insumos y Productos</button>
-      <button class="drawer-item" data-view="recipes">🥣 Fórmulas y Recetas</button>
-      <button class="drawer-item" data-view="item-form">➕ Registrar Material</button>
-      <button class="drawer-item" data-view="recipe-form">📐 Crear Escandallo Lote</button>
+      <button class="drawer-item" data-view="items-view">📦 Insumos y Productos</button>
+      <button class="drawer-item" data-view="recipes-view">🥣 Fórmulas y Recetas</button>
+      <button class="drawer-item" data-action="new-item">➕ Registrar Material</button>
+      <button class="drawer-item" data-action="new-recipe">📐 Crear Escandallo Lote</button>
     </nav>
+    <div class="drawer-footer">
+      <label for="langSelect">Idioma / Yuwe:</label>
+      <select id="langSelect" class="input-field">
+        <option value="es">Español</option>
+        <option value="guc">Wayuunaiki</option>
+        <option value="pbb">Nasa Yuwe</option>
+      </select>
+    </div>
   </aside>
 
   <!-- Encabezado Principal -->
   <header>
     <div class="header-left">
-      <button id="btnOpenDrawer" class="btn-hamburger" aria-label="Abrir menú">☰</button>
-      <h1 style="font-size: 1.1rem; font-weight: 800;">Kora Inventario</h1>
+      <button id="btnOpenDrawer" class="btn-icon">☰</button>
+      <h1>Kora Inventario</h1>
     </div>
     <div class="offline-badge">100% Offline</div>
   </header>
 
   <!-- Barra de Pestañas Superiores -->
   <nav class="tab-bar">
-    <button id="tabNavItems" class="tab-nav-btn active">1. Insumos y Existencias</button>
-    <button id="tabNavRecipes" class="tab-nav-btn">2. Recetas (Escandallo)</button>
+    <button class="tab-nav-btn active" data-view="items-view">1. Materiales & Stock</button>
+    <button class="tab-nav-btn" data-view="recipes-view">2. Recetas (Escandallo)</button>
   </nav>
 
-  <!-- Contenedor Único Dinámico (#app) -->
-  <main id="appMainContent"></main>
+  <!-- Contenedor Dinámico Principal -->
+  <main id="appContent"></main>
 
   <footer>
     <span>Kora Negocios Populares • Cero Anuncios • Licencia MIT</span>
   </footer>
 
-  <!-- Controlador Modular (MVC) -->
+  <!-- ========================================== -->
+  <!-- PLANTILLAS DECLARATIVAS (TEMPLATES VISTAS) -->
+  <!-- ========================================== -->
+
+  <!-- Plantilla: Vista de Insumos -->
+  <template id="tmpl-items-view">
+    <div style="margin-bottom: 16px;">
+      <button class="btn-primary" id="btnGoNewItem">➕ Nuevo Material o Producto</button>
+    </div>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Material / Insumo</th>
+            <th>Tipo</th>
+            <th>Stock</th>
+            <th>Valores</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="itemsTbody"></tbody>
+      </table>
+    </div>
+  </template>
+
+  <!-- Plantilla: Formulario de Insumo/Producto -->
+  <template id="tmpl-item-form-view">
+    <div class="card">
+      <h2 class="card-title" id="itemFormTitle">Registro de Material</h2>
+      <form id="itemForm">
+        <input type="hidden" id="itemId">
+        <div class="form-group">
+          <label>Nombre del Material o Producto:</label>
+          <input type="text" id="itemNombre" class="input-field" required placeholder="Ej: Harina de Maíz">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tipo:</label>
+            <select id="itemTipo" class="input-field">
+              <option value="MATERIA_PRIMA">Materia Prima / Insumo</option>
+              <option value="PRODUCTO_TERMINADO">Producto Terminado (Venta)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Unidad de Medida:</label>
+            <select id="itemUnidad" class="input-field">
+              <option value="kg">Kilogramos (kg)</option>
+              <option value="gr">Gramos (gr)</option>
+              <option value="unidad">Unidad (ud)</option>
+              <option value="litro">Litros (L)</option>
+              <option value="metro">Metros (m)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Stock Disponible:</label>
+            <input type="number" step="any" id="itemStock" class="input-field" required value="10">
+          </div>
+          <div class="form-group">
+            <label>Stock Mínimo (Alerta):</label>
+            <input type="number" step="any" id="itemStockMin" class="input-field" required value="2">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Costo de Compra ($):</label>
+            <input type="number" step="any" id="itemCosto" class="input-field" required value="1000">
+          </div>
+          <div class="form-group" id="grpPrecioVenta" style="display: none;">
+            <label>Precio de Venta Sugerido ($):</label>
+            <input type="number" step="any" id="itemPrecio" class="input-field" value="2500">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Proveedor / Contacto:</label>
+            <input type="text" id="itemProveedor" class="input-field" placeholder="Ej: Distribuidora Central">
+          </div>
+          <div class="form-group">
+            <label>Reposición (Días):</label>
+            <input type="number" id="itemDias" class="input-field" value="2">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="btnCancelItemForm">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar Datos</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <!-- Plantilla: Vista de Recetas -->
+  <template id="tmpl-recipes-view">
+    <div style="margin-bottom: 16px;">
+      <button class="btn-primary" id="btnGoNewRecipe">➕ Nueva Receta (Escandallo de Lote)</button>
+    </div>
+    <div id="recipesCardsContainer"></div>
+  </template>
+
+  <!-- Plantilla: Formulario de Receta -->
+  <template id="tmpl-recipe-form-view">
+    <div class="card">
+      <h2 class="card-title">Nueva Receta (Escandallo por Lote)</h2>
+      <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 12px;">
+        Ingresa las cantidades para el lote completo. El sistema calculará el costo unitario de 1 sola unidad.
+      </p>
+      <form id="recipeForm">
+        <input type="hidden" id="recipeId">
+        <div class="form-group">
+          <label>Nombre de la Receta:</label>
+          <input type="text" id="recipeNombre" class="input-field" required placeholder="Ej: Lote 50 Empanadas">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Producto Terminado que Fabrica:</label>
+            <select id="recipeProductoId" class="input-field" required></select>
+          </div>
+          <div class="form-group">
+            <label>Rendimiento del Lote (Unidades):</label>
+            <input type="number" step="any" id="recipeRendimiento" class="input-field" required value="20" min="1">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Mano de Obra del Lote ($):</label>
+            <input type="number" step="any" id="recipeManoObra" class="input-field" value="6000" min="0">
+          </div>
+          <div class="form-group">
+            <label>Merma / Desperdicio (%):</label>
+            <input type="number" step="any" id="recipeMerma" class="input-field" value="5" min="0">
+          </div>
+        </div>
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 16px 0;">
+        <h3 style="font-size: 0.85rem; color: var(--accent-gold); margin-bottom: 8px;">Insumos Consumidos en el Lote Completo</h3>
+        <div id="recipeIngredientsRows"></div>
+        <button type="button" class="btn-secondary" id="btnAddIngredientRow" style="width: 100%; margin-top: 6px;">
+          + Seleccionar Insumo
+        </button>
+        <div class="form-actions" style="margin-top: 18px;">
+          <button type="button" class="btn-secondary" id="btnCancelRecipeForm">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar Receta</button>
+        </div>
+      </form>
+    </div>
+  </template>
+
+  <!-- Controlador Modular -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
