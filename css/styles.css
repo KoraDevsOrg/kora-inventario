@@ -1,8 +1,8 @@
 :root {
-  --bg-color: #090d16;
-  --surface: #131b2e;
-  --surface-accent: #1e293b;
-  --border: #2e3d5a;
+  --bg-color: #0b1120;
+  --surface: #1e293b;
+  --surface-accent: #0f172a;
+  --border: #334155;
   --text-main: #f8fafc;
   --text-sub: #94a3b8;
   --accent-gold: #fbbf24;
@@ -27,7 +27,6 @@ body {
   flex-direction: column;
 }
 
-/* Cabecera */
 header {
   padding: 12px 16px;
   background-color: var(--surface);
@@ -49,7 +48,6 @@ header {
   color: var(--text-main);
   font-size: 1.5rem;
   cursor: pointer;
-  padding: 4px;
 }
 
 .offline-badge {
@@ -62,7 +60,6 @@ header {
   font-weight: 700;
 }
 
-/* Navegación por pestañas */
 nav.tab-bar {
   display: flex;
   background: var(--surface);
@@ -71,7 +68,7 @@ nav.tab-bar {
 
 .tab-nav-btn {
   flex: 1;
-  padding: 12px;
+  padding: 14px;
   background: transparent;
   border: none;
   border-bottom: 3px solid transparent;
@@ -87,89 +84,6 @@ nav.tab-bar {
   background: var(--surface-accent);
 }
 
-/* Drawer Lateral */
-.drawer-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.25s ease;
-  z-index: 40;
-}
-
-.drawer-backdrop.active {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.side-drawer {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 290px;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  transform: translateX(-100%);
-  transition: transform 0.25s ease;
-  z-index: 50;
-  display: flex;
-  flex-direction: column;
-}
-
-.side-drawer.open {
-  transform: translateX(0);
-}
-
-.drawer-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.drawer-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px 0;
-}
-
-.drawer-item {
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: var(--text-main);
-  padding: 14px 16px;
-  font-size: 0.95rem;
-  cursor: pointer;
-  border-left: 4px solid transparent;
-}
-
-.drawer-item.active {
-  background: var(--surface-accent);
-  border-left-color: var(--accent-gold);
-  font-weight: bold;
-}
-
-.drawer-footer {
-  padding: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.lang-select {
-  width: 100%;
-  padding: 10px;
-  background: var(--surface-accent);
-  color: var(--text-main);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-
-/* Área de Contenido */
 main {
   flex: 1;
   padding: 16px;
@@ -179,36 +93,99 @@ main {
   width: 100%;
 }
 
-.section-view {
-  display: none;
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
-.section-view.active {
-  display: block;
+.card-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--accent-gold);
+  margin-bottom: 12px;
 }
 
 .btn-primary {
   background: var(--accent-gold);
   color: #000;
   border: none;
-  padding: 12px 16px;
+  padding: 12px 18px;
   border-radius: 8px;
   font-weight: bold;
   font-size: 0.9rem;
   cursor: pointer;
   width: 100%;
-  margin-bottom: 16px;
 }
 
-.card {
-  background: var(--surface);
+.btn-secondary {
+  background: var(--surface-accent);
+  color: var(--text-main);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 14px;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
 }
 
-/* Tablas Responsivas */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  color: var(--text-sub);
+}
+
+.input-field {
+  background: var(--surface-accent);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.input-field:focus {
+  border-color: var(--accent-gold);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.form-actions {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 10px;
+}
+
+.ingredient-selection-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.btn-delete {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid var(--red-alert);
+  color: #fca5a5;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .table-container {
   width: 100%;
   overflow-x: auto;
@@ -262,7 +239,6 @@ th {
   border: 1px solid var(--red-alert);
 }
 
-/* Fórmulas y Desglose de Receta */
 .recipe-breakdown {
   background: #0d1322;
   border-radius: 8px;
@@ -288,6 +264,66 @@ th {
   color: var(--accent-gold);
 }
 
+/* Drawer */
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 40;
+}
+
+.drawer-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.side-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawer-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  padding: 14px 16px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  border-left: 4px solid transparent;
+}
+
+.drawer-item:hover, .drawer-item.active {
+  background: var(--surface-accent);
+  border-left-color: var(--accent-gold);
+}
+
 footer {
   padding: 12px;
   background: var(--surface);
@@ -295,4 +331,4 @@ footer {
   font-size: 0.75rem;
   color: var(--text-sub);
   text-align: center;
-  }
+}
