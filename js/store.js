@@ -1,5 +1,5 @@
 /**
- * MODELO DE DATOS: Inventario Físico, BOM y Kardex
+ * MODELO DE DATOS: Inventario Físico, BOM y Kardex con Integridad Contable
  * KoraDevsOrg - Licencia MIT
  */
 
@@ -51,7 +51,6 @@ export class InventoryModel {
       }
     }
 
-    // Semillas iniciales si el almacenamiento está vacío
     if (!localStorage.getItem(this.KEY_ITEMS) || JSON.parse(localStorage.getItem(this.KEY_ITEMS)).length === 0) {
       const seedItems = [
         { id: "item_harina", nombre: "Harina de Maíz", tipo: "MATERIA_PRIMA", unidad_medida: "kg", stock_actual: 35.0, stock_minimo: 10.0, proveedor: "Distribuidora Central", updated_at: Date.now() },
@@ -85,7 +84,7 @@ export class InventoryModel {
         { id: "mov_2", material_id: "item_harina", tipo_movimiento: "SALIDA", cantidad: 15, motivo: "Producción de lote", fecha: now - 86400000 * 3 },
         { id: "mov_3", material_id: "item_carne", tipo_movimiento: "ENTRADA", cantidad: 20, motivo: "Compra carnicería", fecha: now - 86400000 * 4 },
         { id: "mov_4", material_id: "item_carne", tipo_movimiento: "SALIDA", cantidad: 8, motivo: "Producción fin de semana", fecha: now - 86400000 * 2 },
-        { id: "mov_5", material_id: "prod_empanada", tipo_movimiento: "ENTRADA", cantidad: 50, motivo: "Ingreso de producto terminado", fecha: now - 86400000 * 1 }
+        { id: "mov_5", material_id: "prod_empanada", tipo_movimiento: "ENTRADA", cantidad: 50, motivo: "Ingreso inicial producto terminado", fecha: now - 86400000 * 1 }
       ];
       localStorage.setItem(this.KEY_MOVS, JSON.stringify(seedMovs));
     }
@@ -110,21 +109,36 @@ export class InventoryModel {
 
   saveItem(item) {
     const items = this.getItems();
-    const isNew = !item.id;
+    const existing = items.find(i => String(i.id) === String(item.id));
+    const targetStock = Number(item.stock_actual) || 0;
+
     const record = {
       ...item,
       id: item.id || `item_${Date.now()}`,
-      stock_actual: Number(item.stock_actual) || 0,
+      stock_actual: targetStock,
       stock_minimo: Number(item.stock_minimo) || 0,
       updated_at: Date.now()
     };
 
-    const idx = items.findIndex(i => String(i.id) === String(record.id));
-    if (idx >= 0) {
+    if (existing) {
+      // 1. CASO EDICIÓN: Si el stock cambió en la ficha, registrar el delta en el Kardex
+      const diff = targetStock - Number(existing.stock_actual);
+      if (diff !== 0) {
+        const tipo = diff > 0 ? "ENTRADA" : "SALIDA";
+        this.addMovimientoRecord({
+          id: `mov_adj_${Date.now()}`,
+          material_id: record.id,
+          tipo_movimiento: tipo,
+          cantidad: Math.abs(diff),
+          motivo: "Ajuste directo desde edición de ficha",
+          fecha: Date.now()
+        });
+      }
+      const idx = items.findIndex(i => String(i.id) === String(record.id));
       items[idx] = record;
     } else {
+      // 2. CASO CREACIÓN NUEVA: Si inicia con stock, registrar movimiento de entrada inicial
       items.push(record);
-      // Si es un material nuevo, registrar automáticamente su movimiento inicial
       if (record.stock_actual > 0) {
         this.addMovimientoRecord({
           id: `mov_init_${Date.now()}`,
@@ -258,15 +272,53 @@ export class InventoryModel {
 
     const tipo = diferencia > 0 ? "ENTRADA" : "SALIDA";
     this.addMovimientoRecord({
-      id: `mov_${Date.now()}`,
+      id: `mov_kardex_${Date.now()}`,
       material_id: item.id,
       tipo_movimiento: tipo,
       cantidad: Math.abs(diferencia),
-      motivo: motivo || "Ajuste manual de existencias",
+      motivo: motivo || "Ajuste manual directo de kardex",
       fecha: Date.now()
     });
 
     item.stock_actual = Number(nuevoStock);
-    this.saveItem(item);
+    
+    // Guardamos directo sin recalcular deltas duplicados
+    const items = this.getItems();
+    const idx = items.findIndex(i => String(i.id) === String(item.id));
+    if (idx >= 0) {
+      items[idx].stock_actual = Number(nuevoStock);
+      localStorage.setItem(this.KEY_ITEMS, JSON.stringify(items));
+    }
+    if (this.hasBridge) {
+      try {
+        window.KoraDB.execute("UPDATE mod_biz_items SET stock_actual = ? WHERE id = ?;", JSON.stringify([Number(nuevoStock), item.id]));
+      } catch (e) {}
+    }
+  }
+
+  // Utilidad para limpiar desajustes: Fuerza a que el stock coincida con el saldo del Kardex
+  reconcileItemStock(materialId) {
+    const item = this.getItemById(materialId);
+    if (!item) return 0;
+
+    const movs = this.getMovimientos(materialId);
+    let balance = 0;
+    movs.forEach(m => {
+      if (m.tipo_movimiento === "ENTRADA") balance += Number(m.cantidad);
+      else if (m.tipo_movimiento === "SALIDA") balance -= Number(m.cantidad);
+    });
+
+    const items = this.getItems();
+    const idx = items.findIndex(i => String(i.id) === String(item.id));
+    if (idx >= 0) {
+      items[idx].stock_actual = balance;
+      localStorage.setItem(this.KEY_ITEMS, JSON.stringify(items));
+    }
+    if (this.hasBridge) {
+      try {
+        window.KoraDB.execute("UPDATE mod_biz_items SET stock_actual = ? WHERE id = ?;", JSON.stringify([balance, item.id]));
+      } catch (e) {}
+    }
+    return balance;
   }
 }
