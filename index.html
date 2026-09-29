@@ -9,17 +9,17 @@
 </head>
 <body>
 
-  <!-- Backdrop del Drawer -->
+  <!-- Backdrop accesible del Drawer -->
   <div id="drawerBackdrop" class="drawer-backdrop"></div>
 
-  <!-- Menú Lateral: Conector de Módulos ERP -->
+  <!-- Menú Hamburguesa Lateral -->
   <aside id="sideDrawer" class="side-drawer">
     <div class="drawer-header">
-      <h2>Módulos Kora</h2>
+      <h2 style="font-size: 1.15rem; font-weight: 800; color: #fff;">Ecosistema Kora</h2>
       <button id="btnCloseDrawer" class="btn-icon">✕</button>
     </div>
     
-    <div class="drawer-section-title">SUITE DE NEGOCIO</div>
+    <div class="drawer-section-title">SUITE DE NEGOCIO DESCENTRALIZADA</div>
     <nav class="drawer-list">
       <button class="drawer-item active" data-action="home">📦 Gestión de Inventario</button>
       <button class="drawer-item" data-action="mod-fabricacion">⚙️ Fabricación (Órdenes)</button>
@@ -40,7 +40,7 @@
   <header>
     <div class="header-left">
       <button id="btnOpenDrawer" class="btn-icon">☰</button>
-      <h1 id="headerTitle">Kora Inventario</h1>
+      <h1 id="headerTitle" style="font-size: 1.1rem; font-weight: 800;">Kora Inventario</h1>
     </div>
     <div class="offline-badge">100% Offline</div>
   </header>
@@ -52,33 +52,39 @@
   <!-- PLANTILLAS DE VISTAS (TEMPLATES)          -->
   <!-- ========================================== -->
 
-  <!-- 1. PANTALLA PRINCIPAL: ACCIONES DE INVENTARIO -->
+  <!-- 1. PANTALLA PRINCIPAL: ACCIONES DE INVENTARIO ESTILIZADAS -->
   <template id="tmpl-home-view">
     <div class="hub-grid">
-      <button class="hub-card" id="btnActionNewItem">
-        <span class="hub-icon">➕</span>
-        <span class="hub-title">Crear Material</span>
-        <span class="hub-desc">Dar de alta materias primas o productos terminados</span>
-      </button>
+      <div class="hub-card" id="btnActionNewItem">
+        <div class="hub-icon-badge icon-blue">➕</div>
+        <div class="hub-info">
+          <div class="hub-title">Crear Material</div>
+          <div class="hub-desc">Dar de alta materias primas o productos terminados con unidades de medida.</div>
+        </div>
+      </div>
 
-      <button class="hub-card" id="btnActionBOM">
-        <span class="hub-icon">📐</span>
-        <span class="hub-title">Lista de Materiales</span>
-        <span class="hub-desc">Fórmulas de insumos requeridos por lote para fabricar</span>
-      </button>
+      <div class="hub-card" id="btnActionBOM">
+        <div class="hub-icon-badge icon-gold">📐</div>
+        <div class="hub-info">
+          <div class="hub-title">Crear Lista de Materiales</div>
+          <div class="hub-desc">Definir qué insumos y cantidades exactas componen un lote de fabricación.</div>
+        </div>
+      </div>
 
-      <button class="hub-card" id="btnActionStockReport">
-        <span class="hub-icon">📊</span>
-        <span class="hub-title">Reporte de Stock</span>
-        <span class="hub-desc">Consultar existencias, movimientos históricos y costos</span>
-      </button>
+      <div class="hub-card" id="btnActionStockReport">
+        <div class="hub-icon-badge icon-purple">📊</div>
+        <div class="hub-info">
+          <div class="hub-title">Reporte de Stock</div>
+          <div class="hub-desc">Consultar existencias físicas, balance de almacén e historial de movimientos.</div>
+        </div>
+      </div>
     </div>
   </template>
 
-  <!-- 2. FORMULARIO: CREAR / EDITAR MATERIAL -->
+  <!-- 2. FORMULARIO: CREAR / EDITAR MATERIAL (SIN PRECIOS) -->
   <template id="tmpl-item-form-view">
     <div class="card">
-      <div class="card-header-bar">
+      <div class="card-header-bar" style="margin-bottom: 14px;">
         <h2 class="card-title" id="itemFormTitle">Crear Material</h2>
         <button type="button" class="btn-icon" id="btnBackHome">←</button>
       </div>
@@ -93,7 +99,7 @@
             <label>Tipo de Material:</label>
             <select id="itemTipo" class="input-field">
               <option value="MATERIA_PRIMA">Materia Prima (Insumo)</option>
-              <option value="PRODUCTO_TERMINADO">Producto Terminado (Venta)</option>
+              <option value="PRODUCTO_TERMINADO">Producto Terminado</option>
             </select>
           </div>
           <div class="form-group">
@@ -117,41 +123,31 @@
             <input type="number" step="any" id="itemStockMin" class="input-field" required value="2">
           </div>
         </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Costo Actual de Compra ($):</label>
-            <input type="number" step="any" id="itemCosto" class="input-field" required value="1000">
-          </div>
-          <div class="form-group" id="grpPrecioVenta" style="display: none;">
-            <label>Precio de Venta Sugerido ($):</label>
-            <input type="number" step="any" id="itemPrecio" class="input-field" value="2500">
-          </div>
-        </div>
         <div class="form-group">
-          <label>Proveedor / Teléfono:</label>
-          <input type="text" id="itemProveedor" class="input-field" placeholder="Ej: Distribuidora Central">
+          <label>Proveedor o Referencia de Almacén:</label>
+          <input type="text" id="itemProveedor" class="input-field" placeholder="Ej: Bodega Central / Proveedor Local">
         </div>
         <div class="form-actions">
           <button type="button" class="btn-secondary" id="btnCancelItemForm">Cancelar</button>
-          <button type="submit" class="btn-primary">Guardar Material</button>
+          <button type="submit" class="btn-primary">Guardar Registro</button>
         </div>
       </form>
     </div>
   </template>
 
-  <!-- 3. LISTA DE MATERIALES (BOM) -->
+  <!-- 3. FORMULARIO: LISTA DE MATERIALES (BOM) -->
   <template id="tmpl-bom-form-view">
     <div class="card">
-      <div class="card-header-bar">
+      <div class="card-header-bar" style="margin-bottom: 12px;">
         <h2 class="card-title">Lista de Materiales (BOM)</h2>
         <button type="button" class="btn-icon" id="btnBackHomeBOM">←</button>
       </div>
-      <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 12px;">
-        Define qué materias primas componen un lote de fabricación.
+      <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 14px;">
+        Define las proporciones de materias primas necesarias para producir un lote físico terminado.
       </p>
       <form id="bomForm">
         <div class="form-group">
-          <label>Nombre de la Lista / Identificador:</label>
+          <label>Identificador o Nombre del Ensamble:</label>
           <input type="text" id="bomNombre" class="input-field" required placeholder="Ej: Ensamble 20 Empanadas">
         </div>
         <div class="form-grid">
@@ -165,14 +161,14 @@
           </div>
         </div>
         <hr style="border: 0; border-top: 1px solid var(--border); margin: 16px 0;">
-        <h3 style="font-size: 0.85rem; color: var(--accent-gold); margin-bottom: 8px;">Materias Primas Requeridas por Lote</h3>
+        <h3 style="font-size: 0.85rem; color: var(--accent-gold); margin-bottom: 8px;">Insumos Requeridos por Lote</h3>
         <div id="bomMaterialsRows"></div>
         <button type="button" class="btn-secondary" id="btnAddBOMRow" style="width: 100%; margin-top: 6px;">
           + Añadir Materia Prima
         </button>
         <div class="form-actions" style="margin-top: 18px;">
           <button type="button" class="btn-secondary" id="btnCancelBOM">Cancelar</button>
-          <button type="submit" class="btn-primary">Guardar Lista de Materiales</button>
+          <button type="submit" class="btn-primary">Guardar Lista</button>
         </div>
       </form>
     </div>
@@ -180,8 +176,8 @@
 
   <!-- 4. REPORTE DE STOCK: BÚSQUEDA Y SELECCIÓN -->
   <template id="tmpl-stock-search-view">
-    <div class="card-header-bar" style="margin-bottom: 12px;">
-      <h2 style="font-size: 1.1rem; color: var(--text-main);">Consultar Material</h2>
+    <div class="card-header-bar" style="margin-bottom: 14px;">
+      <h2 style="font-size: 1.1rem; color: var(--text-main); font-weight: 800;">Consultar Existencias</h2>
       <button type="button" class="btn-icon" id="btnBackHomeSearch">←</button>
     </div>
     <div class="search-box">
@@ -190,9 +186,9 @@
     <div id="searchMaterialResults" class="materials-list"></div>
   </template>
 
-  <!-- 5. DETALLE DE STOCK, FABRICACIÓN E HISTORIAL PAGINADO -->
+  <!-- 5. DETALLE DE STOCK FÍSICO Y KARDEX DE MOVIMIENTOS -->
   <template id="tmpl-stock-detail-view">
-    <div class="card-header-bar" style="margin-bottom: 12px;">
+    <div class="card-header-bar" style="margin-bottom: 14px;">
       <button type="button" class="btn-icon" id="btnBackToSearch">← Volver</button>
       <div style="display: flex; gap: 8px;">
         <button id="btnEditCurrentMaterial" class="btn-secondary btn-sm">✏️ Editar</button>
@@ -200,35 +196,37 @@
       </div>
     </div>
 
-    <!-- Resumen del Material -->
+    <!-- Resumen de Almacén -->
     <div class="card">
       <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2 id="detMaterialNombre" style="color: var(--accent-gold); font-size: 1.25rem;">--</h2>
+        <h2 id="detMaterialNombre" style="color: var(--accent-gold); font-size: 1.25rem; font-weight: 800;">--</h2>
         <span id="detMaterialBadge" class="badge">--</span>
       </div>
-      <div class="metrics-grid" style="margin-top: 12px;">
+      <div class="metrics-grid" style="margin-top: 14px;">
         <div class="metric-box">
-          <div class="metric-label">Stock Actual</div>
+          <div class="metric-label">Existencia Actual</div>
           <div id="detMaterialStock" class="metric-value">--</div>
         </div>
         <div class="metric-box">
-          <div class="metric-label">Costo Unitario</div>
-          <div id="detMaterialCosto" class="metric-value">--</div>
+          <div class="metric-label">Alerta Mínimo</div>
+          <div id="detMaterialStockMin" class="metric-value">--</div>
         </div>
       </div>
-      <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button id="btnQuickAdjustStock" class="btn-secondary" style="flex: 1; font-size: 0.85rem;">
-          ⚙️ Ajuste Manual de Cantidades
+      <div style="margin-top: 14px;">
+        <button id="btnQuickAdjustStock" class="btn-secondary" style="width: 100%; font-size: 0.85rem;">
+          ⚙️️ Ajuste Manual de Inventario Físico
         </button>
       </div>
     </div>
 
-    <!-- Sección de Fabricación (Solo si tiene Lista de Materiales) -->
+    <!-- Sección Condicional: Lista de Materiales / Notificación Módulo Fabricación -->
     <div id="fabricationSection"></div>
 
-    <!-- Historial de Movimientos con Filtros -->
+    <!-- Kardex de Movimientos Paginado -->
     <div class="card">
-      <h3 style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 10px;">Historial de Movimientos</h3>
+      <h3 style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 12px; font-weight: 800;">
+        Kardex de Movimientos
+      </h3>
       
       <div class="form-grid" style="margin-bottom: 10px;">
         <div class="form-group">
@@ -241,7 +239,7 @@
         </div>
       </div>
       <button id="btnFiltrarMovs" class="btn-secondary" style="width: 100%; margin-bottom: 12px; padding: 8px;">
-        Aplicar Filtro de Fechas
+        Filtrar Rango de Fechas
       </button>
 
       <div class="table-container">
@@ -249,31 +247,34 @@
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Tipo</th>
+              <th>Movimiento</th>
               <th>Cantidad</th>
-              <th>Costo Momento</th>
-              <th>Motivo</th>
+              <th>Motivo / Justificación</th>
             </tr>
           </thead>
           <tbody id="movimientosTbody"></tbody>
         </table>
       </div>
 
-      <!-- Paginación Simple -->
       <div class="pagination-bar">
         <button id="btnPrevPage" class="btn-secondary btn-sm">◀ Anterior</button>
         <span id="lblPageIndicator" style="font-size: 0.8rem; color: var(--text-sub);">Página 1</span>
         <button id="btnNextPage" class="btn-secondary btn-sm">Siguiente ▶</button>
       </div>
 
-      <div class="unit-calc-highlight" style="margin-top: 14px;">
-        <span>Costo Total en Movimientos Filtrados:</span>
-        <span id="lblCostoTotalFiltrado" class="unit-calc-val">$ 0</span>
+      <div class="module-notice-banner" style="margin-top: 16px;">
+        <div>
+          <strong style="color: var(--accent-blue); font-size: 0.85rem;">¿Deseas costear este inventario?</strong>
+          <p style="color: var(--text-sub); font-size: 0.75rem; margin-top: 2px;">
+            Para valuar este stock según precios de compra o venta, abre <strong>Kora Costos</strong> o <strong>Kora Ventas</strong>.
+          </p>
+        </div>
+        <button id="btnGoModuleCostos" class="btn-secondary btn-sm" style="white-space: nowrap;">Ver Costos</button>
       </div>
     </div>
   </template>
 
-  <!-- Script Controlador Modular -->
+  <!-- Script Modular -->
   <script type="module" src="js/app.js"></script>
 </body>
 </html>
