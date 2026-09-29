@@ -5,7 +5,6 @@ class InventoryController {
     this.model = new InventoryModel();
     this.mainEl = document.getElementById("appContent");
     
-    // Estado de selección para vistas dependientes
     this.selectedMaterialId = null;
     this.currentPage = 1;
     this.pageSize = 5;
@@ -67,16 +66,11 @@ class InventoryController {
   mountTemplate(tmplId) {
     this.mainEl.innerHTML = "";
     const tmpl = document.getElementById(tmplId);
-    if (!tmpl) {
-      console.error("Plantilla no encontrada:", tmplId);
-      return;
-    }
+    if (!tmpl) return;
     this.mainEl.appendChild(tmpl.content.cloneNode(true));
   }
 
-  // ==========================================
-  // 1. PANTALLA PRINCIPAL (HUB TÁCTIL)
-  // ==========================================
+  // --- 1. PANTALLA PRINCIPAL (HUB TÁCTIL) ---
   renderHome() {
     this.mountTemplate("tmpl-home-view");
     document.getElementById("headerTitle").textContent = "Kora Inventario";
@@ -90,9 +84,7 @@ class InventoryController {
     if (btnStock) btnStock.onclick = () => this.renderStockSearch();
   }
 
-  // ==========================================
-  // 2. FORMULARIO: CREAR Y EDITAR MATERIAL
-  // ==========================================
+  // --- 2. FORMULARIO: CREAR Y EDITAR MATERIAL ---
   renderItemForm(itemId = null) {
     this.mountTemplate("tmpl-item-form-view");
     document.getElementById("headerTitle").textContent = itemId ? "Editar Material" : "Nuevo Material";
@@ -119,13 +111,11 @@ class InventoryController {
       proveedorInput.value = item.proveedor || "";
     }
 
-    // Botones Volver y Cancelar
     const btnBack = document.getElementById("btnBackHome");
     const btnCancel = document.getElementById("btnCancelItemForm");
     if (btnBack) btnBack.onclick = () => (itemId ? this.renderStockDetail() : this.renderHome());
     if (btnCancel) btnCancel.onclick = () => (itemId ? this.renderStockDetail() : this.renderHome());
 
-    // Submit del formulario
     if (form) {
       form.onsubmit = (e) => {
         e.preventDefault();
@@ -139,16 +129,13 @@ class InventoryController {
           proveedor: proveedorInput.value.trim()
         });
 
-        // Seleccionar de inmediato el material guardado y ver su detalle
         this.selectedMaterialId = saved.id;
         this.renderStockDetail();
       };
     }
   }
 
-  // ==========================================
-  // 3. FORMULARIO: LISTA DE MATERIALES (BOM)
-  // ==========================================
+  // --- 3. LISTA DE MATERIALES (BOM) ---
   renderBOMForm() {
     const rawItems = this.model.getItems().filter(i => i.tipo === "MATERIA_PRIMA");
     const finishedItems = this.model.getItems().filter(i => i.tipo === "PRODUCTO_TERMINADO");
@@ -221,9 +208,7 @@ class InventoryController {
     }
   }
 
-  // ==========================================
-  // 4. BÚSQUEDA Y PARÁMETRO DE SELECCIÓN
-  // ==========================================
+  // --- 4. BÚSQUEDA Y PARÁMETRO DE SELECCIÓN ---
   renderStockSearch() {
     this.mountTemplate("tmpl-stock-search-view");
     document.getElementById("headerTitle").textContent = "Consultar Material";
@@ -267,9 +252,7 @@ class InventoryController {
     doSearch();
   }
 
-  // ==========================================
-  // 5. DETALLE FÍSICO Y KARDEX DE MOVIMIENTOS
-  // ==========================================
+  // --- 5. DETALLE FÍSICO Y KARDEX DE MOVIMIENTOS ---
   renderStockDetail() {
     const item = this.model.getItemById(this.selectedMaterialId);
     if (!item) {
@@ -289,15 +272,12 @@ class InventoryController {
     document.getElementById("detMaterialStock").textContent = `${item.stock_actual} ${item.unidad_medida}`;
     document.getElementById("detMaterialStockMin").textContent = `${item.stock_minimo} ${item.unidad_medida}`;
 
-    // Botón Volver
     const btnBack = document.getElementById("btnBackToSearch");
     if (btnBack) btnBack.onclick = () => this.renderStockSearch();
 
-    // Botón Editar
     const btnEdit = document.getElementById("btnEditCurrentMaterial");
     if (btnEdit) btnEdit.onclick = () => this.renderItemForm(item.id);
 
-    // Botón Eliminar
     const btnDelete = document.getElementById("btnDeleteCurrentMaterial");
     if (btnDelete) {
       btnDelete.onclick = () => {
@@ -308,7 +288,7 @@ class InventoryController {
       };
     }
 
-    // Ajuste manual de existencias
+    // Ajuste manual directo
     const btnAdjust = document.getElementById("btnQuickAdjustStock");
     if (btnAdjust) {
       btnAdjust.onclick = () => {
@@ -321,24 +301,58 @@ class InventoryController {
       };
     }
 
-    // Lista de materiales vinculada / aviso de fabricación
+    // Verificar si hay desajuste entre Kardex y Cabecera
+    const movs = this.model.getMovimientos(item.id);
+    let balanceKardex = 0;
+    movs.forEach(m => {
+      if (m.tipo_movimiento === "ENTRADA") balanceKardex += Number(m.cantidad);
+      else if (m.tipo_movimiento === "SALIDA") balanceKardex -= Number(m.cantidad);
+    });
+
+    const diff = Number(item.stock_actual) - balanceKardex;
     const fabSection = document.getElementById("fabricationSection");
-    const bom = this.model.getBOMByProductId(item.id);
-    if (bom && fabSection) {
+
+    // Si hay discrepancia, mostrar banner de reconciliación
+    if (diff !== 0 && fabSection) {
       fabSection.innerHTML = `
-        <div class="card" style="border: 1px dashed var(--accent-gold);">
+        <div class="card" style="border: 1px solid var(--red-alert); background: rgba(239, 68, 68, 0.1);">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <h3 style="color:var(--accent-gold); font-size:0.95rem; font-weight:800;">Lista de Materiales Vinculada</h3>
-              <small style="color:var(--text-sub);">${bom.nombre} (Lote: ${bom.lote_rendimiento} ${item.unidad_medida})</small>
+              <strong style="color:#fca5a5; font-size:0.9rem;">⚠️ Desajuste Detectado</strong>
+              <p style="color:var(--text-sub); font-size:0.75rem; margin-top:2px;">
+                Stock registrado (${item.stock_actual}) no coincide con el balance de movimientos (${balanceKardex}).
+              </p>
             </div>
-            <button id="btnTriggerFabrication" class="btn-primary btn-sm">⚙️ Fabricar Lote</button>
+            <button id="btnReconcile" class="btn-primary btn-sm" style="background:#ef4444; color:#fff;">
+              Cuadrar a ${balanceKardex}
+            </button>
           </div>
         </div>
       `;
-      const btnFab = document.getElementById("btnTriggerFabrication");
-      if (btnFab) {
-        btnFab.onclick = () => this.showExternalModuleNotice("Módulo Kora Fabricación (Órdenes de Producción)");
+      document.getElementById("btnReconcile").onclick = () => {
+        this.model.reconcileItemStock(item.id);
+        alert("Stock ajustado correctamente al balance contable del Kardex.");
+        this.renderStockDetail();
+      };
+    } else {
+      // Si está cuadrado, revisar si tiene BOM
+      const bom = this.model.getBOMByProductId(item.id);
+      if (bom && fabSection) {
+        fabSection.innerHTML = `
+          <div class="card" style="border: 1px dashed var(--accent-gold);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <h3 style="color:var(--accent-gold); font-size:0.95rem; font-weight:800;">Lista de Materiales Vinculada</h3>
+                <small style="color:var(--text-sub);">${bom.nombre} (Lote: ${bom.lote_rendimiento} ${item.unidad_medida})</small>
+              </div>
+              <button id="btnTriggerFabrication" class="btn-primary btn-sm">⚙️ Fabricar Lote</button>
+            </div>
+          </div>
+        `;
+        const btnFab = document.getElementById("btnTriggerFabrication");
+        if (btnFab) {
+          btnFab.onclick = () => this.showExternalModuleNotice("Módulo Kora Fabricación (Órdenes de Producción)");
+        }
       }
     }
 
