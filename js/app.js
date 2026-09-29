@@ -1,247 +1,279 @@
-import { InventoryModel } from "./store.js";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kora Inventario</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/gh/KoraDevsOrg/kora-web-sdk@main/kora-sync.js"></script>
+</head>
+<body>
 
-class InventoryController {
-  constructor() {
-    this.model = new InventoryModel();
-    this.contentEl = document.getElementById("appContent");
-    this.currentView = "items-view";
+  <!-- Backdrop del Drawer -->
+  <div id="drawerBackdrop" class="drawer-backdrop"></div>
+
+  <!-- Menú Lateral: Conector de Módulos ERP -->
+  <aside id="sideDrawer" class="side-drawer">
+    <div class="drawer-header">
+      <h2>Módulos Kora</h2>
+      <button id="btnCloseDrawer" class="btn-icon">✕</button>
+    </div>
     
-    this.initDrawer();
-    this.initNavigation();
-    this.renderView("items-view");
-  }
+    <div class="drawer-section-title">SUITE DE NEGOCIO</div>
+    <nav class="drawer-list">
+      <button class="drawer-item active" data-action="home">📦 Gestión de Inventario</button>
+      <button class="drawer-item" data-action="mod-fabricacion">⚙️ Fabricación (Órdenes)</button>
+      <button class="drawer-item" data-action="mod-ventas">🏷️ Ventas & Mostrador</button>
+      <button class="drawer-item" data-action="mod-costos">💡 Costos & Servicios Indirectos</button>
+      <button class="drawer-item" data-action="mod-financiero">📊 Financiero & Cuentas</button>
+    </nav>
 
-  initDrawer() {
-    const drawer = document.getElementById("sideDrawer");
-    const backdrop = document.getElementById("drawerBackdrop");
-    const toggle = (open) => {
-      drawer.classList.toggle("open", open);
-      backdrop.classList.toggle("active", open);
-    };
+    <div class="drawer-footer">
+      <small style="color: var(--text-sub); display: block; margin-bottom: 8px;">Kora Admin DB (Motor Central)</small>
+      <button id="btnOpenKoraAdmin" class="btn-secondary" style="width: 100%; font-size: 0.8rem;">
+        ⚙️ Administrar Bases de Datos
+      </button>
+    </div>
+  </aside>
 
-    document.getElementById("btnOpenDrawer").addEventListener("click", () => toggle(true));
-    document.getElementById("btnCloseDrawer").addEventListener("click", () => toggle(false));
-    backdrop.addEventListener("click", () => toggle(false));
+  <!-- Encabezado Principal -->
+  <header>
+    <div class="header-left">
+      <button id="btnOpenDrawer" class="btn-icon">☰</button>
+      <h1 id="headerTitle">Kora Inventario</h1>
+    </div>
+    <div class="offline-badge">100% Offline</div>
+  </header>
 
-    document.querySelectorAll(".drawer-item").forEach(btn => {
-      btn.addEventListener("click", () => {
-        toggle(false);
-        if (btn.dataset.view) this.renderView(btn.dataset.view);
-        if (btn.dataset.action === "new-item") this.renderItemForm(null);
-        if (btn.dataset.action === "new-recipe") this.renderRecipeForm();
-      });
-    });
-  }
+  <!-- Contenedor Principal donde se montan las Vistas -->
+  <main id="appContent"></main>
 
-  initNavigation() {
-    document.querySelectorAll(".tab-nav-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-nav-btn").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        this.renderView(btn.dataset.view);
-      });
-    });
-  }
+  <!-- ========================================== -->
+  <!-- PLANTILLAS DE VISTAS (TEMPLATES)          -->
+  <!-- ========================================== -->
 
-  renderView(viewName) {
-    this.currentView = viewName;
-    this.contentEl.innerHTML = "";
-    const tmpl = document.getElementById(`tmpl-${viewName}`);
-    if (!tmpl) return;
+  <!-- 1. PANTALLA PRINCIPAL: ACCIONES DE INVENTARIO -->
+  <template id="tmpl-home-view">
+    <div class="hub-grid">
+      <button class="hub-card" id="btnActionNewItem">
+        <span class="hub-icon">➕</span>
+        <span class="hub-title">Crear Material</span>
+        <span class="hub-desc">Dar de alta materias primas o productos terminados</span>
+      </button>
 
-    this.contentEl.appendChild(tmpl.content.cloneNode(true));
+      <button class="hub-card" id="btnActionBOM">
+        <span class="hub-icon">📐</span>
+        <span class="hub-title">Lista de Materiales</span>
+        <span class="hub-desc">Fórmulas de insumos requeridos por lote para fabricar</span>
+      </button>
 
-    if (viewName === "items-view") this.bindItemsView();
-    if (viewName === "recipes-view") this.bindRecipesView();
-  }
+      <button class="hub-card" id="btnActionStockReport">
+        <span class="hub-icon">📊</span>
+        <span class="hub-title">Reporte de Stock</span>
+        <span class="hub-desc">Consultar existencias, movimientos históricos y costos</span>
+      </button>
+    </div>
+  </template>
 
-  // --- VISTA ITEMS ---
-  bindItemsView() {
-    const tbody = document.getElementById("itemsTbody");
-    const items = this.model.getItems();
-
-    if (items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-sub); padding: 24px;">No hay materiales registrados.</td></tr>`;
-    } else {
-      tbody.innerHTML = items.map(i => `
-        <tr>
-          <td><strong>${i.nombre}</strong><br><small style="color:var(--text-sub);">${i.proveedor || "Sin proveedor"} (${i.reposicion_dias || 1}d)</small></td>
-          <td><span class="badge ${i.tipo === 'MATERIA_PRIMA' ? 'badge-raw' : 'badge-finished'}">${i.tipo === 'MATERIA_PRIMA' ? 'MATERIA PRIMA' : 'TERMINADO'}</span></td>
-          <td><strong>${i.stock_actual} ${i.unidad_medida}</strong>${Number(i.stock_actual) <= Number(i.stock_minimo) ? '<br><span class="badge badge-low-stock">BAJO</span>' : ''}</td>
-          <td>Costo: $${Math.round(i.costo_unitario).toLocaleString()}<br>${i.tipo !== 'MATERIA_PRIMA' ? `<strong style="color:var(--accent-green);">$${Math.round(i.precio_venta).toLocaleString()}</strong>` : ''}</td>
-          <td><button class="btn-edit" data-id="${i.id}">✏️</button></td>
-        </tr>
-      `).join("");
-    }
-
-    document.getElementById("btnGoNewItem").addEventListener("click", () => this.renderItemForm(null));
-    tbody.querySelectorAll(".btn-edit").forEach(btn => {
-      btn.addEventListener("click", () => this.renderItemForm(btn.dataset.id));
-    });
-  }
-
-  // --- FORMULARIO ITEM ---
-  renderItemForm(itemId) {
-    this.contentEl.innerHTML = "";
-    const tmpl = document.getElementById("tmpl-item-form-view");
-    this.contentEl.appendChild(tmpl.content.cloneNode(true));
-
-    const item = itemId ? this.model.getItemById(itemId) : null;
-    const form = document.getElementById("itemForm");
-    const grpPrecio = document.getElementById("grpPrecioVenta");
-    const selTipo = document.getElementById("itemTipo");
-
-    if (item) {
-      document.getElementById("itemFormTitle").textContent = "✏️ Editar Material / Producto";
-      document.getElementById("itemId").value = item.id;
-      document.getElementById("itemNombre").value = item.nombre;
-      selTipo.value = item.tipo;
-      document.getElementById("itemUnidad").value = item.unidad_medida;
-      document.getElementById("itemStock").value = item.stock_actual;
-      document.getElementById("itemStockMin").value = item.stock_minimo;
-      document.getElementById("itemCosto").value = item.costo_unitario;
-      document.getElementById("itemPrecio").value = item.precio_venta;
-      document.getElementById("itemProveedor").value = item.proveedor;
-      document.getElementById("itemDias").value = item.reposicion_dias;
-    }
-
-    grpPrecio.style.display = selTipo.value === "PRODUCTO_TERMINADO" ? "flex" : "none";
-    selTipo.addEventListener("change", () => {
-      grpPrecio.style.display = selTipo.value === "PRODUCTO_TERMINADO" ? "flex" : "none";
-    });
-
-    document.getElementById("btnCancelItemForm").addEventListener("click", () => this.renderView("items-view"));
-
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      this.model.saveItem({
-        id: document.getElementById("itemId").value || null,
-        nombre: document.getElementById("itemNombre").value.trim(),
-        tipo: selTipo.value,
-        unidad_medida: document.getElementById("itemUnidad").value,
-        stock_actual: parseFloat(document.getElementById("itemStock").value) || 0,
-        stock_minimo: parseFloat(document.getElementById("itemStockMin").value) || 0,
-        costo_unitario: parseFloat(document.getElementById("itemCosto").value) || 0,
-        precio_venta: parseFloat(document.getElementById("itemPrecio").value) || 0,
-        proveedor: document.getElementById("itemProveedor").value.trim(),
-        reposicion_dias: parseInt(document.getElementById("itemDias").value, 10) || 1
-      });
-      this.renderView("items-view");
-    });
-  }
-
-  // --- VISTA RECETAS ---
-  bindRecipesView() {
-    const container = document.getElementById("recipesCardsContainer");
-    const recipes = this.model.getRecipes();
-    const items = this.model.getItems();
-
-    if (recipes.length === 0) {
-      container.innerHTML = `<div class="card" style="text-align: center; color: var(--text-sub); padding: 24px;">No hay recetas registradas.</div>`;
-    } else {
-      container.innerHTML = recipes.map(r => {
-        const prod = items.find(i => i.id === r.producto_terminado_id) || { nombre: "Producto" };
-        let costoInsumos = 0;
-        const desglose = (r.ingredientes || []).map(ing => {
-          const raw = items.find(i => i.id === ing.materia_prima_id);
-          const c = raw ? (Number(ing.cantidad_lote) * Number(raw.costo_unitario)) : 0;
-          costoInsumos += c;
-          return `<div>• ${raw ? raw.nombre : ing.materia_prima_id}: ${(Number(ing.cantidad_lote) / Number(r.lote_rendimiento)).toFixed(3)} ${raw ? raw.unidad_medida : ''} ($${Math.round(c / Number(r.lote_rendimiento)).toLocaleString()})</div>`;
-        }).join("");
-
-        const costoTotal = (costoInsumos * (1 + (Number(r.merma_porcentaje) / 100))) + Number(r.mano_obra_lote);
-        const costoUnitario = costoTotal / Number(r.lote_rendimiento);
-
-        return `
-          <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:baseline;">
-              <h3 style="color:var(--accent-gold);">${r.nombre}</h3>
-              <span class="badge badge-finished">Rinde ${r.lote_rendimiento} uds</span>
-            </div>
-            <p style="font-size:0.8rem; color:var(--text-sub); margin-bottom:8px;">Fabrica: <strong>${prod.nombre}</strong></p>
-            <div class="recipe-breakdown">
-              <small style="color:var(--text-sub); text-transform:uppercase;">Consumo para 1 Unidad:</small>
-              ${desglose}
-            </div>
-            <div class="unit-calc-highlight">
-              <span>Costo Real Unitario:</span>
-              <span class="unit-calc-val">$ ${Math.round(costoUnitario).toLocaleString()}</span>
-            </div>
+  <!-- 2. FORMULARIO: CREAR / EDITAR MATERIAL -->
+  <template id="tmpl-item-form-view">
+    <div class="card">
+      <div class="card-header-bar">
+        <h2 class="card-title" id="itemFormTitle">Crear Material</h2>
+        <button type="button" class="btn-icon" id="btnBackHome">←</button>
+      </div>
+      <form id="itemForm">
+        <input type="hidden" id="itemId">
+        <div class="form-group">
+          <label>Nombre del Material o Producto:</label>
+          <input type="text" id="itemNombre" class="input-field" required placeholder="Ej: Harina de Maíz">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tipo de Material:</label>
+            <select id="itemTipo" class="input-field">
+              <option value="MATERIA_PRIMA">Materia Prima (Insumo)</option>
+              <option value="PRODUCTO_TERMINADO">Producto Terminado (Venta)</option>
+            </select>
           </div>
-        `;
-      }).join("");
-    }
+          <div class="form-group">
+            <label>Unidad de Medida:</label>
+            <select id="itemUnidad" class="input-field">
+              <option value="kg">Kilogramos (kg)</option>
+              <option value="gr">Gramos (gr)</option>
+              <option value="unidad">Unidades (ud)</option>
+              <option value="litro">Litros (L)</option>
+              <option value="metro">Metros (m)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Stock Disponible:</label>
+            <input type="number" step="any" id="itemStock" class="input-field" required value="10">
+          </div>
+          <div class="form-group">
+            <label>Stock Mínimo (Alerta):</label>
+            <input type="number" step="any" id="itemStockMin" class="input-field" required value="2">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Costo Actual de Compra ($):</label>
+            <input type="number" step="any" id="itemCosto" class="input-field" required value="1000">
+          </div>
+          <div class="form-group" id="grpPrecioVenta" style="display: none;">
+            <label>Precio de Venta Sugerido ($):</label>
+            <input type="number" step="any" id="itemPrecio" class="input-field" value="2500">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Proveedor / Teléfono:</label>
+          <input type="text" id="itemProveedor" class="input-field" placeholder="Ej: Distribuidora Central">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="btnCancelItemForm">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar Material</button>
+        </div>
+      </form>
+    </div>
+  </template>
 
-    document.getElementById("btnGoNewRecipe").addEventListener("click", () => this.renderRecipeForm());
-  }
+  <!-- 3. LISTA DE MATERIALES (BOM) -->
+  <template id="tmpl-bom-form-view">
+    <div class="card">
+      <div class="card-header-bar">
+        <h2 class="card-title">Lista de Materiales (BOM)</h2>
+        <button type="button" class="btn-icon" id="btnBackHomeBOM">←</button>
+      </div>
+      <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 12px;">
+        Define qué materias primas componen un lote de fabricación.
+      </p>
+      <form id="bomForm">
+        <div class="form-group">
+          <label>Nombre de la Lista / Identificador:</label>
+          <input type="text" id="bomNombre" class="input-field" required placeholder="Ej: Ensamble 20 Empanadas">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Producto Terminado:</label>
+            <select id="bomProductoId" class="input-field" required></select>
+          </div>
+          <div class="form-group">
+            <label>Rendimiento por Lote (Uds):</label>
+            <input type="number" step="any" id="bomRendimiento" class="input-field" required value="20" min="1">
+          </div>
+        </div>
+        <hr style="border: 0; border-top: 1px solid var(--border); margin: 16px 0;">
+        <h3 style="font-size: 0.85rem; color: var(--accent-gold); margin-bottom: 8px;">Materias Primas Requeridas por Lote</h3>
+        <div id="bomMaterialsRows"></div>
+        <button type="button" class="btn-secondary" id="btnAddBOMRow" style="width: 100%; margin-top: 6px;">
+          + Añadir Materia Prima
+        </button>
+        <div class="form-actions" style="margin-top: 18px;">
+          <button type="button" class="btn-secondary" id="btnCancelBOM">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar Lista de Materiales</button>
+        </div>
+      </form>
+    </div>
+  </template>
 
-  // --- FORMULARIO RECETAS ---
-  renderRecipeForm() {
-    const rawItems = this.model.getItems().filter(i => i.tipo === "MATERIA_PRIMA");
-    const finishedItems = this.model.getItems().filter(i => i.tipo === "PRODUCTO_TERMINADO");
+  <!-- 4. REPORTE DE STOCK: BÚSQUEDA Y SELECCIÓN -->
+  <template id="tmpl-stock-search-view">
+    <div class="card-header-bar" style="margin-bottom: 12px;">
+      <h2 style="font-size: 1.1rem; color: var(--text-main);">Consultar Material</h2>
+      <button type="button" class="btn-icon" id="btnBackHomeSearch">←</button>
+    </div>
+    <div class="search-box">
+      <input type="text" id="searchMaterialInput" class="input-field" placeholder="🔍 Escribe para buscar material..." autocomplete="off">
+    </div>
+    <div id="searchMaterialResults" class="materials-list"></div>
+  </template>
 
-    if (rawItems.length === 0 || finishedItems.length === 0) {
-      alert("Atención: Debes tener al menos 1 Materia Prima y 1 Producto Terminado creados.");
-      this.renderView("items-view");
-      return;
-    }
+  <!-- 5. DETALLE DE STOCK, FABRICACIÓN E HISTORIAL PAGINADO -->
+  <template id="tmpl-stock-detail-view">
+    <div class="card-header-bar" style="margin-bottom: 12px;">
+      <button type="button" class="btn-icon" id="btnBackToSearch">← Volver</button>
+      <div style="display: flex; gap: 8px;">
+        <button id="btnEditCurrentMaterial" class="btn-secondary btn-sm">✏️ Editar</button>
+        <button id="btnDeleteCurrentMaterial" class="btn-danger btn-sm">🗑️</button>
+      </div>
+    </div>
 
-    this.contentEl.innerHTML = "";
-    const tmpl = document.getElementById("tmpl-recipe-form-view");
-    this.contentEl.appendChild(tmpl.content.cloneNode(true));
+    <!-- Resumen del Material -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: baseline;">
+        <h2 id="detMaterialNombre" style="color: var(--accent-gold); font-size: 1.25rem;">--</h2>
+        <span id="detMaterialBadge" class="badge">--</span>
+      </div>
+      <div class="metrics-grid" style="margin-top: 12px;">
+        <div class="metric-box">
+          <div class="metric-label">Stock Actual</div>
+          <div id="detMaterialStock" class="metric-value">--</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-label">Costo Unitario</div>
+          <div id="detMaterialCosto" class="metric-value">--</div>
+        </div>
+      </div>
+      <div style="margin-top: 12px; display: flex; gap: 8px;">
+        <button id="btnQuickAdjustStock" class="btn-secondary" style="flex: 1; font-size: 0.85rem;">
+          ⚙️ Ajuste Manual de Cantidades
+        </button>
+      </div>
+    </div>
 
-    const selProd = document.getElementById("recipeProductoId");
-    selProd.innerHTML = finishedItems.map(p => `<option value="${p.id}">${p.nombre}</option>`).join("");
+    <!-- Sección de Fabricación (Solo si tiene Lista de Materiales) -->
+    <div id="fabricationSection"></div>
 
-    const rowsContainer = document.getElementById("recipeIngredientsRows");
-    const addRow = () => {
-      const row = document.createElement("div");
-      row.className = "ingredient-selection-row";
-      row.innerHTML = `
-        <select class="input-field select-raw" style="flex:2;">
-          ${rawItems.map(m => `<option value="${m.id}">${m.nombre} (${m.unidad_medida})</option>`).join("")}
-        </select>
-        <input type="number" step="any" class="input-field input-qty" style="flex:1;" placeholder="Cant. Lote" required>
-        <button type="button" class="btn-delete">✕</button>
-      `;
-      row.querySelector(".btn-delete").addEventListener("click", () => row.remove());
-      rowsContainer.appendChild(row);
-    };
+    <!-- Historial de Movimientos con Filtros -->
+    <div class="card">
+      <h3 style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 10px;">Historial de Movimientos</h3>
+      
+      <div class="form-grid" style="margin-bottom: 10px;">
+        <div class="form-group">
+          <label>Desde:</label>
+          <input type="date" id="filtroFechaDesde" class="input-field" style="padding: 8px;">
+        </div>
+        <div class="form-group">
+          <label>Hasta:</label>
+          <input type="date" id="filtroFechaHasta" class="input-field" style="padding: 8px;">
+        </div>
+      </div>
+      <button id="btnFiltrarMovs" class="btn-secondary" style="width: 100%; margin-bottom: 12px; padding: 8px;">
+        Aplicar Filtro de Fechas
+      </button>
 
-    document.getElementById("btnAddIngredientRow").addEventListener("click", addRow);
-    addRow(); // Fila inicial
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Costo Momento</th>
+              <th>Motivo</th>
+            </tr>
+          </thead>
+          <tbody id="movimientosTbody"></tbody>
+        </table>
+      </div>
 
-    document.getElementById("btnCancelRecipeForm").addEventListener("click", () => this.renderView("recipes-view"));
+      <!-- Paginación Simple -->
+      <div class="pagination-bar">
+        <button id="btnPrevPage" class="btn-secondary btn-sm">◀ Anterior</button>
+        <span id="lblPageIndicator" style="font-size: 0.8rem; color: var(--text-sub);">Página 1</span>
+        <button id="btnNextPage" class="btn-secondary btn-sm">Siguiente ▶</button>
+      </div>
 
-    document.getElementById("recipeForm").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const rows = rowsContainer.querySelectorAll(".ingredient-selection-row");
-      const ingredients = [];
+      <div class="unit-calc-highlight" style="margin-top: 14px;">
+        <span>Costo Total en Movimientos Filtrados:</span>
+        <span id="lblCostoTotalFiltrado" class="unit-calc-val">$ 0</span>
+      </div>
+    </div>
+  </template>
 
-      rows.forEach(r => {
-        const matId = r.querySelector(".select-raw").value;
-        const qty = parseFloat(r.querySelector(".input-qty").value) || 0;
-        if (qty > 0) ingredients.push({ materia_prima_id: matId, cantidad_lote: qty });
-      });
-
-      if (ingredients.length === 0) {
-        alert("Agrega al menos un ingrediente con cantidad mayor a 0.");
-        return;
-      }
-
-      this.model.saveRecipe({
-        nombre: document.getElementById("recipeNombre").value.trim(),
-        producto_terminado_id: selProd.value,
-        lote_rendimiento: parseFloat(document.getElementById("recipeRendimiento").value) || 1,
-        mano_obra_lote: parseFloat(document.getElementById("recipeManoObra").value) || 0,
-        merma_porcentaje: parseFloat(document.getElementById("recipeMerma").value) || 0
-      }, ingredients);
-
-      this.renderView("recipes-view");
-    });
-  }
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  new InventoryController();
-});
+  <!-- Script Controlador Modular -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
