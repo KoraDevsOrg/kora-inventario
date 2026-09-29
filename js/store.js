@@ -1,14 +1,14 @@
 /**
- * MODELO DE DATOS: Inventario, Lista de Materiales (BOM) y Movimientos
+ * MODELO DE DATOS: Inventario Físico, BOM y Movimientos (Sin Costeo)
  * KoraDevsOrg - Licencia MIT
  */
 
 export class InventoryModel {
   constructor() {
     this.hasBridge = typeof window.KoraDB !== "undefined";
-    this.KEY_ITEMS = "kora_inv_items_v4";
-    this.KEY_BOM = "kora_inv_bom_v4";
-    this.KEY_MOVS = "kora_inv_movs_v4";
+    this.KEY_ITEMS = "kora_inv_items_v5";
+    this.KEY_BOM = "kora_inv_bom_v5";
+    this.KEY_MOVS = "kora_inv_movs_v5";
     this.initDatabase();
   }
 
@@ -22,8 +22,6 @@ export class InventoryModel {
           unidad_medida TEXT NOT NULL,
           stock_actual REAL DEFAULT 0,
           stock_minimo REAL DEFAULT 0,
-          costo_unitario REAL DEFAULT 0,
-          precio_venta REAL DEFAULT 0,
           proveedor TEXT,
           updated_at INTEGER NOT NULL
         );
@@ -42,18 +40,18 @@ export class InventoryModel {
           material_id TEXT NOT NULL,
           tipo_movimiento TEXT NOT NULL,
           cantidad REAL NOT NULL,
-          costo_unitario_momento REAL NOT NULL,
           motivo TEXT,
           fecha INTEGER NOT NULL
         );
       `;
       window.KoraDB.registerModule("org.koradevs.negocios.inventario", "Kora Inventario", 1, ddl);
     } else {
+      // Datos semilla iniciales en unidades físicas
       if (!localStorage.getItem(this.KEY_ITEMS)) {
         const seedItems = [
-          { id: "item_harina", nombre: "Harina de Maíz", tipo: "MATERIA_PRIMA", unidad_medida: "kg", stock_actual: 25, stock_minimo: 5, costo_unitario: 4500, precio_venta: 0, proveedor: "Distribuidora Central", updated_at: Date.now() },
-          { id: "item_carne", nombre: "Carne Molida", tipo: "MATERIA_PRIMA", unidad_medida: "kg", stock_actual: 10, stock_minimo: 2, costo_unitario: 22000, precio_venta: 0, proveedor: "Carnicería La 10", updated_at: Date.now() },
-          { id: "prod_empanada", nombre: "Empanada Tradicional", tipo: "PRODUCTO_TERMINADO", unidad_medida: "unidad", stock_actual: 40, stock_minimo: 15, costo_unitario: 1350, precio_venta: 2500, proveedor: "Fabricación Propia", updated_at: Date.now() }
+          { id: "item_harina", nombre: "Harina de Maíz", tipo: "MATERIA_PRIMA", unidad_medida: "kg", stock_actual: 35.0, stock_minimo: 10.0, proveedor: "Distribuidora Central", updated_at: Date.now() },
+          { id: "item_carne", nombre: "Carne de Res Molida", tipo: "MATERIA_PRIMA", unidad_medida: "kg", stock_actual: 12.0, stock_minimo: 4.0, proveedor: "Carnicería Local", updated_at: Date.now() },
+          { id: "prod_empanada", nombre: "Empanada de Carne", tipo: "PRODUCTO_TERMINADO", unidad_medida: "unidad", stock_actual: 50.0, stock_minimo: 20.0, proveedor: "Taller Propio", updated_at: Date.now() }
         ];
         localStorage.setItem(this.KEY_ITEMS, JSON.stringify(seedItems));
       }
@@ -63,7 +61,7 @@ export class InventoryModel {
           {
             id: "bom_empanada",
             producto_terminado_id: "prod_empanada",
-            nombre: "Empanada Estándar (Lote 20)",
+            nombre: "Lista Ensamble 20 Empanadas",
             lote_rendimiento: 20,
             materiales: [
               { material_id: "item_harina", cantidad_lote: 0.8 },
@@ -78,10 +76,9 @@ export class InventoryModel {
       if (!localStorage.getItem(this.KEY_MOVS)) {
         const now = Date.now();
         const seedMovs = [
-          { id: "mov_1", material_id: "item_harina", tipo_movimiento: "ENTRADA", cantidad: 30, costo_unitario_momento: 4000, motivo: "Compra inicial proveedor", fecha: now - 86400000 * 5 },
-          { id: "mov_2", material_id: "item_harina", tipo_movimiento: "SALIDA", cantidad: 5, costo_unitario_momento: 4000, motivo: "Producción lote prueba", fecha: now - 86400000 * 3 },
-          { id: "mov_3", material_id: "item_harina", tipo_movimiento: "ENTRADA", cantidad: 10, costo_unitario_momento: 4500, motivo: "Reposición (aumento de precio)", fecha: now - 86400000 * 1 },
-          { id: "mov_4", material_id: "prod_empanada", tipo_movimiento: "ENTRADA", cantidad: 40, costo_unitario_momento: 1350, motivo: "Producción de lote", fecha: now - 86400000 * 2 }
+          { id: "mov_1", material_id: "item_harina", tipo_movimiento: "ENTRADA", cantidad: 50, motivo: "Compra inicial proveedor", fecha: now - 86400000 * 5 },
+          { id: "mov_2", material_id: "item_harina", tipo_movimiento: "SALIDA", cantidad: 15, motivo: "Producción de lote", fecha: now - 86400000 * 3 },
+          { id: "mov_3", material_id: "prod_empanada", tipo_movimiento: "ENTRADA", cantidad: 50, motivo: "Ingreso de producto terminado", fecha: now - 86400000 * 2 }
         ];
         localStorage.setItem(this.KEY_MOVS, JSON.stringify(seedMovs));
       }
@@ -114,13 +111,12 @@ export class InventoryModel {
     if (this.hasBridge) {
       const sql = `
         INSERT OR REPLACE INTO mod_biz_items 
-        (id, nombre, tipo, unidad_medida, stock_actual, stock_minimo, costo_unitario, precio_venta, proveedor, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        (id, nombre, tipo, unidad_medida, stock_actual, stock_minimo, proveedor, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?);
       `;
       window.KoraDB.execute(sql, JSON.stringify([
         record.id, record.nombre, record.tipo, record.unidad_medida,
-        record.stock_actual, record.stock_minimo, record.costo_unitario,
-        record.precio_venta, record.proveedor, record.updated_at
+        record.stock_actual, record.stock_minimo, record.proveedor, record.updated_at
       ]));
     }
     return record;
@@ -207,22 +203,19 @@ export class InventoryModel {
       material_id: materialId,
       tipo_movimiento: tipo,
       cantidad: Math.abs(diferencia),
-      costo_unitario_momento: Number(item.costo_unitario),
-      motivo: motivo || "Ajuste manual de existencias",
+      motivo: motivo || "Ajuste manual de existencias físicas",
       fecha: Date.now()
     };
 
-    // Actualizar movimiento
     const allMovs = JSON.parse(localStorage.getItem(this.KEY_MOVS) || "[]");
     allMovs.push(movRecord);
     localStorage.setItem(this.KEY_MOVS, JSON.stringify(allMovs));
 
     if (this.hasBridge) {
-      const sqlMov = `INSERT INTO mod_biz_movimientos (id, material_id, tipo_movimiento, cantidad, costo_unitario_momento, motivo, fecha) VALUES (?, ?, ?, ?, ?, ?, ?);`;
-      window.KoraDB.execute(sqlMov, JSON.stringify([movRecord.id, movRecord.material_id, movRecord.tipo_movimiento, movRecord.cantidad, movRecord.costo_unitario_momento, movRecord.motivo, movRecord.fecha]));
+      const sqlMov = `INSERT INTO mod_biz_movimientos (id, material_id, tipo_movimiento, cantidad, motivo, fecha) VALUES (?, ?, ?, ?, ?, ?);`;
+      window.KoraDB.execute(sqlMov, JSON.stringify([movRecord.id, movRecord.material_id, movRecord.tipo_movimiento, movRecord.cantidad, movRecord.motivo, movRecord.fecha]));
     }
 
-    // Actualizar ítem
     item.stock_actual = nuevoStock;
     this.saveItem(item);
   }
