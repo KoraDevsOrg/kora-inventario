@@ -1,279 +1,349 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Kora Inventario</title>
-  <link rel="stylesheet" href="css/styles.css">
-  <script src="https://cdn.jsdelivr.net/gh/KoraDevsOrg/kora-web-sdk@main/kora-sync.js"></script>
-</head>
-<body>
+import { InventoryModel } from "./store.js";
 
-  <!-- Backdrop del Drawer -->
-  <div id="drawerBackdrop" class="drawer-backdrop"></div>
-
-  <!-- Menú Lateral: Conector de Módulos ERP -->
-  <aside id="sideDrawer" class="side-drawer">
-    <div class="drawer-header">
-      <h2>Módulos Kora</h2>
-      <button id="btnCloseDrawer" class="btn-icon">✕</button>
-    </div>
+class InventoryController {
+  constructor() {
+    this.model = new InventoryModel();
+    this.mainEl = document.getElementById("appContent");
     
-    <div class="drawer-section-title">SUITE DE NEGOCIO</div>
-    <nav class="drawer-list">
-      <button class="drawer-item active" data-action="home">📦 Gestión de Inventario</button>
-      <button class="drawer-item" data-action="mod-fabricacion">⚙️ Fabricación (Órdenes)</button>
-      <button class="drawer-item" data-action="mod-ventas">🏷️ Ventas & Mostrador</button>
-      <button class="drawer-item" data-action="mod-costos">💡 Costos & Servicios Indirectos</button>
-      <button class="drawer-item" data-action="mod-financiero">📊 Financiero & Cuentas</button>
-    </nav>
+    // Estado de navegación
+    this.selectedMaterialId = null;
+    this.currentPage = 1;
+    this.pageSize = 5;
+    this.filterFrom = null;
+    this.filterTo = null;
 
-    <div class="drawer-footer">
-      <small style="color: var(--text-sub); display: block; margin-bottom: 8px;">Kora Admin DB (Motor Central)</small>
-      <button id="btnOpenKoraAdmin" class="btn-secondary" style="width: 100%; font-size: 0.8rem;">
-        ⚙️ Administrar Bases de Datos
-      </button>
-    </div>
-  </aside>
+    this.initDrawer();
+    this.renderHome();
+  }
 
-  <!-- Encabezado Principal -->
-  <header>
-    <div class="header-left">
-      <button id="btnOpenDrawer" class="btn-icon">☰</button>
-      <h1 id="headerTitle">Kora Inventario</h1>
-    </div>
-    <div class="offline-badge">100% Offline</div>
-  </header>
+  initDrawer() {
+    const drawer = document.getElementById("sideDrawer");
+    const backdrop = document.getElementById("drawerBackdrop");
+    const toggle = (open) => {
+      drawer.classList.toggle("open", open);
+      backdrop.classList.toggle("active", open);
+    };
 
-  <!-- Contenedor Principal donde se montan las Vistas -->
-  <main id="appContent"></main>
+    document.getElementById("btnOpenDrawer").addEventListener("click", () => toggle(true));
+    document.getElementById("btnCloseDrawer").addEventListener("click", () => toggle(false));
+    backdrop.addEventListener("click", () => toggle(false));
 
-  <!-- ========================================== -->
-  <!-- PLANTILLAS DE VISTAS (TEMPLATES)          -->
-  <!-- ========================================== -->
+    document.querySelectorAll(".drawer-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        toggle(false);
+        const action = btn.dataset.action;
+        if (action === "home") this.renderHome();
+        else this.showExternalModuleNotice(btn.textContent.trim());
+      });
+    });
 
-  <!-- 1. PANTALLA PRINCIPAL: ACCIONES DE INVENTARIO -->
-  <template id="tmpl-home-view">
-    <div class="hub-grid">
-      <button class="hub-card" id="btnActionNewItem">
-        <span class="hub-icon">➕</span>
-        <span class="hub-title">Crear Material</span>
-        <span class="hub-desc">Dar de alta materias primas o productos terminados</span>
-      </button>
+    document.getElementById("btnOpenKoraAdmin").addEventListener("click", () => {
+      toggle(false);
+      window.location.href = "intent://org.koradevs.admindb/#Intent;scheme=package;end";
+    });
+  }
 
-      <button class="hub-card" id="btnActionBOM">
-        <span class="hub-icon">📐</span>
-        <span class="hub-title">Lista de Materiales</span>
-        <span class="hub-desc">Fórmulas de insumos requeridos por lote para fabricar</span>
-      </button>
-
-      <button class="hub-card" id="btnActionStockReport">
-        <span class="hub-icon">📊</span>
-        <span class="hub-title">Reporte de Stock</span>
-        <span class="hub-desc">Consultar existencias, movimientos históricos y costos</span>
-      </button>
-    </div>
-  </template>
-
-  <!-- 2. FORMULARIO: CREAR / EDITAR MATERIAL -->
-  <template id="tmpl-item-form-view">
-    <div class="card">
-      <div class="card-header-bar">
-        <h2 class="card-title" id="itemFormTitle">Crear Material</h2>
-        <button type="button" class="btn-icon" id="btnBackHome">←</button>
+  showExternalModuleNotice(modName) {
+    this.mainEl.innerHTML = `
+      <div class="card" style="text-align: center; padding: 30px;">
+        <span style="font-size: 2.5rem;">📦</span>
+        <h2 style="color: var(--accent-gold); margin: 12px 0;">${modName}</h2>
+        <p style="color: var(--text-sub); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px;">
+          Este módulo está desacoplado para mantener el teléfono liviano. Puedes instalarlo o abrirlo como acceso directo desde la tienda de <strong>Kora Admin DB</strong> para compartir la misma base de datos.
+        </p>
+        <button id="btnReturnHomeNotice" class="btn-primary">Volver al Inventario</button>
       </div>
-      <form id="itemForm">
-        <input type="hidden" id="itemId">
-        <div class="form-group">
-          <label>Nombre del Material o Producto:</label>
-          <input type="text" id="itemNombre" class="input-field" required placeholder="Ej: Harina de Maíz">
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Tipo de Material:</label>
-            <select id="itemTipo" class="input-field">
-              <option value="MATERIA_PRIMA">Materia Prima (Insumo)</option>
-              <option value="PRODUCTO_TERMINADO">Producto Terminado (Venta)</option>
-            </select>
+    `;
+    document.getElementById("btnReturnHomeNotice").addEventListener("click", () => this.renderHome());
+  }
+
+  mountTemplate(tmplId) {
+    this.mainEl.innerHTML = "";
+    const tmpl = document.getElementById(tmplId);
+    if (tmpl) this.mainEl.appendChild(tmpl.content.cloneNode(true));
+  }
+
+  // --- 1. PANTALLA PRINCIPAL: BOTONES DE ACCIÓN ---
+  renderHome() {
+    this.mountTemplate("tmpl-home-view");
+    document.getElementById("headerTitle").textContent = "Kora Inventario";
+
+    document.getElementById("btnActionNewItem").addEventListener("click", () => this.renderItemForm(null));
+    document.getElementById("btnActionBOM").addEventListener("click", () => this.renderBOMForm());
+    document.getElementById("btnActionStockReport").addEventListener("click", () => this.renderStockSearch());
+  }
+
+  // --- 2. FORMULARIO MATERIAL ---
+  renderItemForm(itemId) {
+    this.mountTemplate("tmpl-item-form-view");
+    document.getElementById("headerTitle").textContent = itemId ? "Editar Material" : "Nuevo Material";
+
+    const item = itemId ? this.model.getItemById(itemId) : null;
+    const selTipo = document.getElementById("itemTipo");
+    const grpPrecio = document.getElementById("grpPrecioVenta");
+
+    if (item) {
+      document.getElementById("itemFormTitle").textContent = "Editar Material";
+      document.getElementById("itemId").value = item.id;
+      document.getElementById("itemNombre").value = item.nombre;
+      selTipo.value = item.tipo;
+      document.getElementById("itemUnidad").value = item.unidad_medida;
+      document.getElementById("itemStock").value = item.stock_actual;
+      document.getElementById("itemStockMin").value = item.stock_minimo;
+      document.getElementById("itemCosto").value = item.costo_unitario;
+      document.getElementById("itemPrecio").value = item.precio_venta;
+      document.getElementById("itemProveedor").value = item.proveedor || "";
+    }
+
+    grpPrecio.style.display = selTipo.value === "PRODUCTO_TERMINADO" ? "flex" : "none";
+    selTipo.addEventListener("change", () => {
+      grpPrecio.style.display = selTipo.value === "PRODUCTO_TERMINADO" ? "flex" : "none";
+    });
+
+    document.getElementById("btnBackHome").addEventListener("click", () => this.renderHome());
+    document.getElementById("btnCancelItemForm").addEventListener("click", () => this.renderHome());
+
+    document.getElementById("itemForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      this.model.saveItem({
+        id: document.getElementById("itemId").value || null,
+        nombre: document.getElementById("itemNombre").value.trim(),
+        tipo: selTipo.value,
+        unidad_medida: document.getElementById("itemUnidad").value,
+        stock_actual: parseFloat(document.getElementById("itemStock").value) || 0,
+        stock_minimo: parseFloat(document.getElementById("itemStockMin").value) || 0,
+        costo_unitario: parseFloat(document.getElementById("itemCosto").value) || 0,
+        precio_venta: parseFloat(document.getElementById("itemPrecio").value) || 0,
+        proveedor: document.getElementById("itemProveedor").value.trim()
+      });
+      this.renderStockSearch();
+    });
+  }
+
+  // --- 3. LISTA DE MATERIALES (BOM) ---
+  renderBOMForm() {
+    const rawItems = this.model.getItems().filter(i => i.tipo === "MATERIA_PRIMA");
+    const finishedItems = this.model.getItems().filter(i => i.tipo === "PRODUCTO_TERMINADO");
+
+    if (rawItems.length === 0 || finishedItems.length === 0) {
+      alert("Atención: Registra al menos 1 Materia Prima y 1 Producto Terminado antes de crear una Lista de Materiales.");
+      this.renderHome();
+      return;
+    }
+
+    this.mountTemplate("tmpl-bom-form-view");
+    document.getElementById("headerTitle").textContent = "Lista de Materiales";
+
+    const selProd = document.getElementById("bomProductoId");
+    selProd.innerHTML = finishedItems.map(p => `<option value="${p.id}">${p.nombre}</option>`).join("");
+
+    const rowsContainer = document.getElementById("bomMaterialsRows");
+    const addRow = () => {
+      const row = document.createElement("div");
+      row.className = "ingredient-selection-row";
+      row.innerHTML = `
+        <select class="input-field select-raw" style="flex:2;">
+          ${rawItems.map(m => `<option value="${m.id}">${m.nombre} (${m.unidad_medida})</option>`).join("")}
+        </select>
+        <input type="number" step="any" class="input-field input-qty" style="flex:1;" placeholder="Cant. Lote" required>
+        <button type="button" class="btn-delete">✕</button>
+      `;
+      row.querySelector(".btn-delete").addEventListener("click", () => row.remove());
+      rowsContainer.appendChild(row);
+    };
+
+    document.getElementById("btnAddBOMRow").addEventListener("click", addRow);
+    addRow();
+
+    document.getElementById("btnBackHomeBOM").addEventListener("click", () => this.renderHome());
+    document.getElementById("btnCancelBOM").addEventListener("click", () => this.renderHome());
+
+    document.getElementById("bomForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const rows = rowsContainer.querySelectorAll(".ingredient-selection-row");
+      const materials = [];
+
+      rows.forEach(r => {
+        const matId = r.querySelector(".select-raw").value;
+        const qty = parseFloat(r.querySelector(".input-qty").value) || 0;
+        if (qty > 0) materials.push({ material_id: matId, cantidad_lote: qty });
+      });
+
+      if (materials.length === 0) {
+        alert("Agrega al menos una materia prima con cantidad válida.");
+        return;
+      }
+
+      this.model.saveBOM({
+        nombre: document.getElementById("bomNombre").value.trim(),
+        producto_terminado_id: selProd.value,
+        lote_rendimiento: parseFloat(document.getElementById("bomRendimiento").value) || 1
+      }, materials);
+
+      alert("Lista de Materiales guardada con éxito.");
+      this.renderHome();
+    });
+  }
+
+  // --- 4. BÚSQUEDA Y PARÁMETRO DE SELECCIÓN ---
+  renderStockSearch() {
+    this.mountTemplate("tmpl-stock-search-view");
+    document.getElementById("headerTitle").textContent = "Consultar Material";
+
+    const input = document.getElementById("searchMaterialInput");
+    const resultsContainer = document.getElementById("searchMaterialResults");
+
+    const doSearch = () => {
+      const q = input.value.toLowerCase().trim();
+      const items = this.model.getItems().filter(i => i.nombre.toLowerCase().includes(q));
+
+      if (items.length === 0) {
+        resultsContainer.innerHTML = `<p style="text-align:center; color:var(--text-sub); padding:20px;">No se encontraron materiales.</p>`;
+        return;
+      }
+
+      resultsContainer.innerHTML = items.map(i => `
+        <div class="material-search-item" data-id="${i.id}">
+          <div>
+            <strong style="color:#fff; font-size:1rem;">${i.nombre}</strong><br>
+            <small style="color:var(--text-sub);">${i.tipo === 'MATERIA_PRIMA' ? 'Materia Prima' : 'Producto Terminado'} • Stock: ${i.stock_actual} ${i.unidad_medida}</small>
           </div>
-          <div class="form-group">
-            <label>Unidad de Medida:</label>
-            <select id="itemUnidad" class="input-field">
-              <option value="kg">Kilogramos (kg)</option>
-              <option value="gr">Gramos (gr)</option>
-              <option value="unidad">Unidades (ud)</option>
-              <option value="litro">Litros (L)</option>
-              <option value="metro">Metros (m)</option>
-            </select>
+          <span style="font-size:1.2rem; color:var(--accent-gold);">➔</span>
+        </div>
+      `).join("");
+
+      resultsContainer.querySelectorAll(".material-search-item").forEach(card => {
+        card.addEventListener("click", () => {
+          this.selectedMaterialId = card.dataset.id;
+          this.currentPage = 1;
+          this.filterFrom = null;
+          this.filterTo = null;
+          this.renderStockDetail();
+        });
+      });
+    };
+
+    input.addEventListener("input", doSearch);
+    document.getElementById("btnBackHomeSearch").addEventListener("click", () => this.renderHome());
+    doSearch();
+  }
+
+  // --- 5. DETALLE DE STOCK, HISTORIAL Y FABRICACIÓN ---
+  renderStockDetail() {
+    const item = this.model.getItemById(this.selectedMaterialId);
+    if (!item) { this.renderStockSearch(); return; }
+
+    this.mountTemplate("tmpl-stock-detail-view");
+    document.getElementById("headerTitle").textContent = "Detalle: " + item.nombre;
+
+    document.getElementById("detMaterialNombre").textContent = item.nombre;
+    const badge = document.getElementById("detMaterialBadge");
+    const isRaw = item.tipo === "MATERIA_PRIMA";
+    badge.className = `badge ${isRaw ? 'badge-raw' : 'badge-finished'}`;
+    badge.textContent = isRaw ? "MATERIA PRIMA" : "PRODUCTO TERMINADO";
+
+    document.getElementById("detMaterialStock").textContent = `${item.stock_actual} ${item.unidad_medida}`;
+    document.getElementById("detMaterialCosto").textContent = `$ ${Math.round(item.costo_unitario).toLocaleString()}`;
+
+    // Navegación y Edición
+    document.getElementById("btnBackToSearch").addEventListener("click", () => this.renderStockSearch());
+    document.getElementById("btnEditCurrentMaterial").addEventListener("click", () => this.renderItemForm(item.id));
+    document.getElementById("btnDeleteCurrentMaterial").addEventListener("click", () => {
+      if (confirm(`¿Eliminar definitivamente el material "${item.nombre}"?`)) {
+        this.model.deleteItem(item.id);
+        this.renderStockSearch();
+      }
+    });
+
+    // Ajuste manual de cantidades
+    document.getElementById("btnQuickAdjustStock").addEventListener("click", () => {
+      const nuevo = prompt(`Stock actual: ${item.stock_actual} ${item.unidad_medida}.\nIngresa la cantidad real física en bodega:`, item.stock_actual);
+      if (nuevo !== null && !isNaN(parseFloat(nuevo))) {
+        const motivo = prompt("Motivo del ajuste:", "Conteo físico en bodega");
+        this.model.adjustStockManual(item.id, parseFloat(nuevo), motivo);
+        this.renderStockDetail();
+      }
+    });
+
+    // Validar Lista de Materiales / Módulo de Fabricación
+    const fabSection = document.getElementById("fabricationSection");
+    const bom = this.model.getBOMByProductId(item.id);
+
+    if (bom) {
+      fabSection.innerHTML = `
+        <div class="card" style="border: 1px dashed var(--accent-gold);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <h3 style="color:var(--accent-gold); font-size:0.95rem;">Lista de Materiales Vinculada</h3>
+              <small style="color:var(--text-sub);">${bom.nombre} (Rinde ${bom.lote_rendimiento} uds)</small>
+            </div>
+            <button id="btnTriggerFabrication" class="btn-primary btn-sm">⚙️ Fabricar Lote</button>
           </div>
         </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Stock Disponible:</label>
-            <input type="number" step="any" id="itemStock" class="input-field" required value="10">
-          </div>
-          <div class="form-group">
-            <label>Stock Mínimo (Alerta):</label>
-            <input type="number" step="any" id="itemStockMin" class="input-field" required value="2">
-          </div>
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Costo Actual de Compra ($):</label>
-            <input type="number" step="any" id="itemCosto" class="input-field" required value="1000">
-          </div>
-          <div class="form-group" id="grpPrecioVenta" style="display: none;">
-            <label>Precio de Venta Sugerido ($):</label>
-            <input type="number" step="any" id="itemPrecio" class="input-field" value="2500">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Proveedor / Teléfono:</label>
-          <input type="text" id="itemProveedor" class="input-field" placeholder="Ej: Distribuidora Central">
-        </div>
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" id="btnCancelItemForm">Cancelar</button>
-          <button type="submit" class="btn-primary">Guardar Material</button>
-        </div>
-      </form>
-    </div>
-  </template>
+      `;
+      document.getElementById("btnTriggerFabrication").addEventListener("click", () => {
+        this.showExternalModuleNotice("Módulo de Fabricación (Órdenes de Producción)");
+      });
+    }
 
-  <!-- 3. LISTA DE MATERIALES (BOM) -->
-  <template id="tmpl-bom-form-view">
-    <div class="card">
-      <div class="card-header-bar">
-        <h2 class="card-title">Lista de Materiales (BOM)</h2>
-        <button type="button" class="btn-icon" id="btnBackHomeBOM">←</button>
-      </div>
-      <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 12px;">
-        Define qué materias primas componen un lote de fabricación.
-      </p>
-      <form id="bomForm">
-        <div class="form-group">
-          <label>Nombre de la Lista / Identificador:</label>
-          <input type="text" id="bomNombre" class="input-field" required placeholder="Ej: Ensamble 20 Empanadas">
-        </div>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Producto Terminado:</label>
-            <select id="bomProductoId" class="input-field" required></select>
-          </div>
-          <div class="form-group">
-            <label>Rendimiento por Lote (Uds):</label>
-            <input type="number" step="any" id="bomRendimiento" class="input-field" required value="20" min="1">
-          </div>
-        </div>
-        <hr style="border: 0; border-top: 1px solid var(--border); margin: 16px 0;">
-        <h3 style="font-size: 0.85rem; color: var(--accent-gold); margin-bottom: 8px;">Materias Primas Requeridas por Lote</h3>
-        <div id="bomMaterialsRows"></div>
-        <button type="button" class="btn-secondary" id="btnAddBOMRow" style="width: 100%; margin-top: 6px;">
-          + Añadir Materia Prima
-        </button>
-        <div class="form-actions" style="margin-top: 18px;">
-          <button type="button" class="btn-secondary" id="btnCancelBOM">Cancelar</button>
-          <button type="submit" class="btn-primary">Guardar Lista de Materiales</button>
-        </div>
-      </form>
-    </div>
-  </template>
+    this.renderMovimientosTable(item);
+  }
 
-  <!-- 4. REPORTE DE STOCK: BÚSQUEDA Y SELECCIÓN -->
-  <template id="tmpl-stock-search-view">
-    <div class="card-header-bar" style="margin-bottom: 12px;">
-      <h2 style="font-size: 1.1rem; color: var(--text-main);">Consultar Material</h2>
-      <button type="button" class="btn-icon" id="btnBackHomeSearch">←</button>
-    </div>
-    <div class="search-box">
-      <input type="text" id="searchMaterialInput" class="input-field" placeholder="🔍 Escribe para buscar material..." autocomplete="off">
-    </div>
-    <div id="searchMaterialResults" class="materials-list"></div>
-  </template>
+  renderMovimientosTable(item) {
+    const allMovs = this.model.getMovimientos(item.id, this.filterFrom, this.filterTo);
+    const tbody = document.getElementById("movimientosTbody");
 
-  <!-- 5. DETALLE DE STOCK, FABRICACIÓN E HISTORIAL PAGINADO -->
-  <template id="tmpl-stock-detail-view">
-    <div class="card-header-bar" style="margin-bottom: 12px;">
-      <button type="button" class="btn-icon" id="btnBackToSearch">← Volver</button>
-      <div style="display: flex; gap: 8px;">
-        <button id="btnEditCurrentMaterial" class="btn-secondary btn-sm">✏️ Editar</button>
-        <button id="btnDeleteCurrentMaterial" class="btn-danger btn-sm">🗑️</button>
-      </div>
-    </div>
+    // Cálculo del costo total de la selección filtrada
+    const costoTotalFiltrado = allMovs.reduce((acc, curr) => acc + (curr.cantidad * curr.costo_unitario_momento), 0);
+    document.getElementById("lblCostoTotalFiltrado").textContent = `$ ${Math.round(costoTotalFiltrado).toLocaleString()}`;
 
-    <!-- Resumen del Material -->
-    <div class="card">
-      <div style="display: flex; justify-content: space-between; align-items: baseline;">
-        <h2 id="detMaterialNombre" style="color: var(--accent-gold); font-size: 1.25rem;">--</h2>
-        <span id="detMaterialBadge" class="badge">--</span>
-      </div>
-      <div class="metrics-grid" style="margin-top: 12px;">
-        <div class="metric-box">
-          <div class="metric-label">Stock Actual</div>
-          <div id="detMaterialStock" class="metric-value">--</div>
-        </div>
-        <div class="metric-box">
-          <div class="metric-label">Costo Unitario</div>
-          <div id="detMaterialCosto" class="metric-value">--</div>
-        </div>
-      </div>
-      <div style="margin-top: 12px; display: flex; gap: 8px;">
-        <button id="btnQuickAdjustStock" class="btn-secondary" style="flex: 1; font-size: 0.85rem;">
-          ⚙️ Ajuste Manual de Cantidades
-        </button>
-      </div>
-    </div>
+    // Paginación
+    const totalPages = Math.max(1, Math.ceil(allMovs.length / this.pageSize));
+    if (this.currentPage > totalPages) this.currentPage = totalPages;
 
-    <!-- Sección de Fabricación (Solo si tiene Lista de Materiales) -->
-    <div id="fabricationSection"></div>
+    const start = (this.currentPage - 1) * this.pageSize;
+    const paginatedMovs = allMovs.slice(start, start + this.pageSize);
 
-    <!-- Historial de Movimientos con Filtros -->
-    <div class="card">
-      <h3 style="font-size: 0.95rem; color: var(--text-main); margin-bottom: 10px;">Historial de Movimientos</h3>
-      
-      <div class="form-grid" style="margin-bottom: 10px;">
-        <div class="form-group">
-          <label>Desde:</label>
-          <input type="date" id="filtroFechaDesde" class="input-field" style="padding: 8px;">
-        </div>
-        <div class="form-group">
-          <label>Hasta:</label>
-          <input type="date" id="filtroFechaHasta" class="input-field" style="padding: 8px;">
-        </div>
-      </div>
-      <button id="btnFiltrarMovs" class="btn-secondary" style="width: 100%; margin-bottom: 12px; padding: 8px;">
-        Aplicar Filtro de Fechas
-      </button>
+    if (paginatedMovs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-sub); padding:16px;">Sin movimientos en el período seleccionado.</td></tr>`;
+    } else {
+      tbody.innerHTML = paginatedMovs.map(m => {
+        const isEntry = m.tipo_movimiento === "ENTRADA";
+        const dateStr = new Date(m.fecha).toLocaleDateString();
+        return `
+          <tr>
+            <td><small>${dateStr}</small></td>
+            <td><span class="badge ${isEntry ? 'badge-finished' : 'badge-low-stock'}">${m.tipo_movimiento}</span></td>
+            <td><strong>${m.cantidad} ${item.unidad_medida}</strong></td>
+            <td>$ ${Math.round(m.costo_unitario_momento).toLocaleString()}</td>
+            <td><small style="color:var(--text-sub);">${m.motivo || '--'}</small></td>
+          </tr>
+        `;
+      }).join("");
+    }
 
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Cantidad</th>
-              <th>Costo Momento</th>
-              <th>Motivo</th>
-            </tr>
-          </thead>
-          <tbody id="movimientosTbody"></tbody>
-        </table>
-      </div>
+    document.getElementById("lblPageIndicator").textContent = `Página ${this.currentPage} de ${totalPages}`;
+    document.getElementById("btnPrevPage").disabled = this.currentPage === 1;
+    document.getElementById("btnNextPage").disabled = this.currentPage === totalPages;
 
-      <!-- Paginación Simple -->
-      <div class="pagination-bar">
-        <button id="btnPrevPage" class="btn-secondary btn-sm">◀ Anterior</button>
-        <span id="lblPageIndicator" style="font-size: 0.8rem; color: var(--text-sub);">Página 1</span>
-        <button id="btnNextPage" class="btn-secondary btn-sm">Siguiente ▶</button>
-      </div>
+    document.getElementById("btnPrevPage").onclick = () => {
+      if (this.currentPage > 1) { this.currentPage--; this.renderMovimientosTable(item); }
+    };
+    document.getElementById("btnNextPage").onclick = () => {
+      if (this.currentPage < totalPages) { this.currentPage++; this.renderMovimientosTable(item); }
+    };
 
-      <div class="unit-calc-highlight" style="margin-top: 14px;">
-        <span>Costo Total en Movimientos Filtrados:</span>
-        <span id="lblCostoTotalFiltrado" class="unit-calc-val">$ 0</span>
-      </div>
-    </div>
-  </template>
+    document.getElementById("btnFiltrarMovs").onclick = () => {
+      const fDesde = document.getElementById("filtroFechaDesde").value;
+      const fHasta = document.getElementById("filtroFechaHasta").value;
+      this.filterFrom = fDesde ? new Date(fDesde).getTime() : null;
+      this.filterTo = fHasta ? new Date(fHasta).setHours(23, 59, 59, 999) : null;
+      this.currentPage = 1;
+      this.renderMovimientosTable(item);
+    };
+  }
+}
 
-  <!-- Script Controlador Modular -->
-  <script type="module" src="js/app.js"></script>
-</body>
-</html>
+document.addEventListener("DOMContentLoaded", () => {
+  new InventoryController();
+});
