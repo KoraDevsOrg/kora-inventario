@@ -5,7 +5,6 @@ class InventoryController {
     this.model = new InventoryModel();
     this.mainEl = document.getElementById("appContent");
     
-    // Estado de navegación
     this.selectedMaterialId = null;
     this.currentPage = 1;
     this.pageSize = 5;
@@ -45,11 +44,11 @@ class InventoryController {
 
   showExternalModuleNotice(modName) {
     this.mainEl.innerHTML = `
-      <div class="card" style="text-align: center; padding: 30px;">
+      <div class="card" style="text-align: center; padding: 32px 16px;">
         <span style="font-size: 2.5rem;">📦</span>
-        <h2 style="color: var(--accent-gold); margin: 12px 0;">${modName}</h2>
-        <p style="color: var(--text-sub); font-size: 0.9rem; line-height: 1.5; margin-bottom: 20px;">
-          Este módulo está desacoplado para mantener el teléfono liviano. Puedes instalarlo o abrirlo como acceso directo desde la tienda de <strong>Kora Admin DB</strong> para compartir la misma base de datos.
+        <h2 style="color: var(--accent-gold); margin: 12px 0; font-size: 1.25rem;">${modName}</h2>
+        <p style="color: var(--text-sub); font-size: 0.85rem; line-height: 1.5; margin-bottom: 20px;">
+          Este módulo opera desacoplado para mantener el inventario puramente físico. Puedes abrirlo o instalarlo desde <strong>Kora Admin DB</strong> para compartir el catálogo.
         </p>
         <button id="btnReturnHomeNotice" class="btn-primary">Volver al Inventario</button>
       </div>
@@ -63,7 +62,7 @@ class InventoryController {
     if (tmpl) this.mainEl.appendChild(tmpl.content.cloneNode(true));
   }
 
-  // --- 1. PANTALLA PRINCIPAL: BOTONES DE ACCIÓN ---
+  // --- 1. PANTALLA PRINCIPAL: ACCIONES DE INVENTARIO ---
   renderHome() {
     this.mountTemplate("tmpl-home-view");
     document.getElementById("headerTitle").textContent = "Kora Inventario";
@@ -73,14 +72,13 @@ class InventoryController {
     document.getElementById("btnActionStockReport").addEventListener("click", () => this.renderStockSearch());
   }
 
-  // --- 2. FORMULARIO MATERIAL ---
+  // --- 2. FORMULARIO MATERIAL (SIN PRECIOS) ---
   renderItemForm(itemId) {
     this.mountTemplate("tmpl-item-form-view");
     document.getElementById("headerTitle").textContent = itemId ? "Editar Material" : "Nuevo Material";
 
     const item = itemId ? this.model.getItemById(itemId) : null;
     const selTipo = document.getElementById("itemTipo");
-    const grpPrecio = document.getElementById("grpPrecioVenta");
 
     if (item) {
       document.getElementById("itemFormTitle").textContent = "Editar Material";
@@ -90,15 +88,8 @@ class InventoryController {
       document.getElementById("itemUnidad").value = item.unidad_medida;
       document.getElementById("itemStock").value = item.stock_actual;
       document.getElementById("itemStockMin").value = item.stock_minimo;
-      document.getElementById("itemCosto").value = item.costo_unitario;
-      document.getElementById("itemPrecio").value = item.precio_venta;
       document.getElementById("itemProveedor").value = item.proveedor || "";
     }
-
-    grpPrecio.style.display = selTipo.value === "PRODUCTO_TERMINADO" ? "flex" : "none";
-    selTipo.addEventListener("change", () => {
-      grpPrecio.style.display = selTipo.value === "PRODUCTO_TERMINADO" ? "flex" : "none";
-    });
 
     document.getElementById("btnBackHome").addEventListener("click", () => this.renderHome());
     document.getElementById("btnCancelItemForm").addEventListener("click", () => this.renderHome());
@@ -112,8 +103,6 @@ class InventoryController {
         unidad_medida: document.getElementById("itemUnidad").value,
         stock_actual: parseFloat(document.getElementById("itemStock").value) || 0,
         stock_minimo: parseFloat(document.getElementById("itemStockMin").value) || 0,
-        costo_unitario: parseFloat(document.getElementById("itemCosto").value) || 0,
-        precio_venta: parseFloat(document.getElementById("itemPrecio").value) || 0,
         proveedor: document.getElementById("itemProveedor").value.trim()
       });
       this.renderStockSearch();
@@ -145,7 +134,7 @@ class InventoryController {
         <select class="input-field select-raw" style="flex:2;">
           ${rawItems.map(m => `<option value="${m.id}">${m.nombre} (${m.unidad_medida})</option>`).join("")}
         </select>
-        <input type="number" step="any" class="input-field input-qty" style="flex:1;" placeholder="Cant. Lote" required>
+        <input type="number" step="any" class="input-field input-qty" style="flex:1;" placeholder="Cantidad" required>
         <button type="button" class="btn-delete">✕</button>
       `;
       row.querySelector(".btn-delete").addEventListener("click", () => row.remove());
@@ -180,12 +169,12 @@ class InventoryController {
         lote_rendimiento: parseFloat(document.getElementById("bomRendimiento").value) || 1
       }, materials);
 
-      alert("Lista de Materiales guardada con éxito.");
+      alert("Lista de Materiales registrada con éxito.");
       this.renderHome();
     });
   }
 
-  // --- 4. BÚSQUEDA Y PARÁMETRO DE SELECCIÓN ---
+  // --- 4. CONSULTA Y BÚSQUEDA ---
   renderStockSearch() {
     this.mountTemplate("tmpl-stock-search-view");
     document.getElementById("headerTitle").textContent = "Consultar Material";
@@ -206,9 +195,9 @@ class InventoryController {
         <div class="material-search-item" data-id="${i.id}">
           <div>
             <strong style="color:#fff; font-size:1rem;">${i.nombre}</strong><br>
-            <small style="color:var(--text-sub);">${i.tipo === 'MATERIA_PRIMA' ? 'Materia Prima' : 'Producto Terminado'} • Stock: ${i.stock_actual} ${i.unidad_medida}</small>
+            <small style="color:var(--text-sub);">${i.tipo === 'MATERIA_PRIMA' ? 'Materia Prima' : 'Producto Terminado'} • Stock: <strong>${i.stock_actual} ${i.unidad_medida}</strong></small>
           </div>
-          <span style="font-size:1.2rem; color:var(--accent-gold);">➔</span>
+          <span style="font-size:1.1rem; color:var(--accent-gold);">➔</span>
         </div>
       `).join("");
 
@@ -228,7 +217,7 @@ class InventoryController {
     doSearch();
   }
 
-  // --- 5. DETALLE DE STOCK, HISTORIAL Y FABRICACIÓN ---
+  // --- 5. DETALLE FÍSICO Y KARDEX ---
   renderStockDetail() {
     const item = this.model.getItemById(this.selectedMaterialId);
     if (!item) { this.renderStockSearch(); return; }
@@ -243,9 +232,8 @@ class InventoryController {
     badge.textContent = isRaw ? "MATERIA PRIMA" : "PRODUCTO TERMINADO";
 
     document.getElementById("detMaterialStock").textContent = `${item.stock_actual} ${item.unidad_medida}`;
-    document.getElementById("detMaterialCosto").textContent = `$ ${Math.round(item.costo_unitario).toLocaleString()}`;
+    document.getElementById("detMaterialStockMin").textContent = `${item.stock_minimo} ${item.unidad_medida}`;
 
-    // Navegación y Edición
     document.getElementById("btnBackToSearch").addEventListener("click", () => this.renderStockSearch());
     document.getElementById("btnEditCurrentMaterial").addEventListener("click", () => this.renderItemForm(item.id));
     document.getElementById("btnDeleteCurrentMaterial").addEventListener("click", () => {
@@ -255,17 +243,17 @@ class InventoryController {
       }
     });
 
-    // Ajuste manual de cantidades
+    // Ajuste manual de inventario físico
     document.getElementById("btnQuickAdjustStock").addEventListener("click", () => {
-      const nuevo = prompt(`Stock actual: ${item.stock_actual} ${item.unidad_medida}.\nIngresa la cantidad real física en bodega:`, item.stock_actual);
+      const nuevo = prompt(`Stock registrado: ${item.stock_actual} ${item.unidad_medida}.\nIngresa la cantidad física real en bodega:`, item.stock_actual);
       if (nuevo !== null && !isNaN(parseFloat(nuevo))) {
-        const motivo = prompt("Motivo del ajuste:", "Conteo físico en bodega");
+        const motivo = prompt("Motivo del conteo físico:", "Auditoría de almacén");
         this.model.adjustStockManual(item.id, parseFloat(nuevo), motivo);
         this.renderStockDetail();
       }
     });
 
-    // Validar Lista de Materiales / Módulo de Fabricación
+    // Validar Lista de Materiales / Enlace a Fabricación
     const fabSection = document.getElementById("fabricationSection");
     const bom = this.model.getBOMByProductId(item.id);
 
@@ -274,17 +262,21 @@ class InventoryController {
         <div class="card" style="border: 1px dashed var(--accent-gold);">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <h3 style="color:var(--accent-gold); font-size:0.95rem;">Lista de Materiales Vinculada</h3>
-              <small style="color:var(--text-sub);">${bom.nombre} (Rinde ${bom.lote_rendimiento} uds)</small>
+              <h3 style="color:var(--accent-gold); font-size:0.95rem; font-weight:800;">Lista de Materiales Vinculada</h3>
+              <small style="color:var(--text-sub);">${bom.nombre} (Lote: ${bom.lote_rendimiento} ${item.unidad_medida})</small>
             </div>
             <button id="btnTriggerFabrication" class="btn-primary btn-sm">⚙️ Fabricar Lote</button>
           </div>
         </div>
       `;
       document.getElementById("btnTriggerFabrication").addEventListener("click", () => {
-        this.showExternalModuleNotice("Módulo de Fabricación (Órdenes de Producción)");
+        this.showExternalModuleNotice("Módulo Kora Fabricación (Órdenes de Producción)");
       });
     }
+
+    document.getElementById("btnGoModuleCostos").addEventListener("click", () => {
+      this.showExternalModuleNotice("Módulo Kora Costos (Valuación de Existencias)");
+    });
 
     this.renderMovimientosTable(item);
   }
@@ -293,11 +285,6 @@ class InventoryController {
     const allMovs = this.model.getMovimientos(item.id, this.filterFrom, this.filterTo);
     const tbody = document.getElementById("movimientosTbody");
 
-    // Cálculo del costo total de la selección filtrada
-    const costoTotalFiltrado = allMovs.reduce((acc, curr) => acc + (curr.cantidad * curr.costo_unitario_momento), 0);
-    document.getElementById("lblCostoTotalFiltrado").textContent = `$ ${Math.round(costoTotalFiltrado).toLocaleString()}`;
-
-    // Paginación
     const totalPages = Math.max(1, Math.ceil(allMovs.length / this.pageSize));
     if (this.currentPage > totalPages) this.currentPage = totalPages;
 
@@ -305,7 +292,7 @@ class InventoryController {
     const paginatedMovs = allMovs.slice(start, start + this.pageSize);
 
     if (paginatedMovs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-sub); padding:16px;">Sin movimientos en el período seleccionado.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:var(--text-sub); padding:16px;">Sin movimientos en el período seleccionado.</td></tr>`;
     } else {
       tbody.innerHTML = paginatedMovs.map(m => {
         const isEntry = m.tipo_movimiento === "ENTRADA";
@@ -314,8 +301,7 @@ class InventoryController {
           <tr>
             <td><small>${dateStr}</small></td>
             <td><span class="badge ${isEntry ? 'badge-finished' : 'badge-low-stock'}">${m.tipo_movimiento}</span></td>
-            <td><strong>${m.cantidad} ${item.unidad_medida}</strong></td>
-            <td>$ ${Math.round(m.costo_unitario_momento).toLocaleString()}</td>
+            <td><strong>${isEntry ? '+' : '-'}${m.cantidad} ${item.unidad_medida}</strong></td>
             <td><small style="color:var(--text-sub);">${m.motivo || '--'}</small></td>
           </tr>
         `;
